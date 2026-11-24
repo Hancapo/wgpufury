@@ -1,0 +1,243 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Mon, 23 Nov 2026 00:00:00 +0000
+Subject: [PATCH 1/2] Build against the wgpu v30.0.2 release
+
+---
+ Cargo.lock | 61 +++++++++++++++++++++++-------------------------------
+ Cargo.toml | 10 ++++-----
+ src/lib.rs |  9 +++-----
+ 3 files changed, 34 insertions(+), 46 deletions(-)
+
+diff --git a/Cargo.lock b/Cargo.lock
+index 8ca971d..5854494 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -72,18 +72,18 @@ dependencies = [
+ 
+ [[package]]
+ name = "bit-set"
+-version = "0.11.1"
++version = "0.10.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "56d87354e4229f54a44f7bf2435906a4656dba36026ab6eaca629a2c436a691c"
++checksum = "09ec2f926cc3060f09db9ebc5b52823d85268d24bb917e472c0c4bea35780a7d"
+ dependencies = [
+  "bit-vec",
+ ]
+ 
+ [[package]]
+ name = "bit-vec"
+-version = "0.10.1"
++version = "0.9.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "5727b15fa97d4f4fee0a3b7c3d550ed0269f54329207b86388de918604e31269"
++checksum = "b71798fca2c1fe1086445a7258a4bc81e6e49dcd24c8d0dd9a1e57395b603f51"
+ 
+ [[package]]
+ name = "bitflags"
+@@ -328,9 +328,9 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
+ 
+ [[package]]
+ name = "glow"
+-version = "0.18.0"
++version = "0.17.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "263218b0ba2b0715c3370fb04674f5f8aa331594b521c94ff0a8e4a8472d1386"
++checksum = "29038e1c483364cc6bb3cf78feee1816002e127c331a1eec55a4d202b9e1adb5"
+ dependencies = [
+  "js-sys",
+  "slotmap",
+@@ -573,8 +573,8 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+ 
+ [[package]]
+ name = "naga"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "arrayvec",
+  "bit-set",
+@@ -601,8 +601,8 @@ dependencies = [
+ 
+ [[package]]
+ name = "naga-types"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "hashbrown 0.17.1",
+  "indexmap",
+@@ -1178,8 +1178,8 @@ dependencies = [
+ 
+ [[package]]
+ name = "wgpu-core"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "arrayvec",
+  "bit-set",
+@@ -1205,8 +1205,7 @@ dependencies = [
+  "thiserror",
+  "wgpu-core-deps-apple",
+  "wgpu-core-deps-emscripten",
+- "wgpu-core-deps-linux-android-bsd",
+- "wgpu-core-deps-windows",
++ "wgpu-core-deps-windows-linux-android",
+  "wgpu-hal",
+  "wgpu-naga-bridge",
+  "wgpu-types",
+@@ -1214,40 +1213,32 @@ dependencies = [
+ 
+ [[package]]
+ name = "wgpu-core-deps-apple"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "wgpu-hal",
+ ]
+ 
+ [[package]]
+ name = "wgpu-core-deps-emscripten"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
+-dependencies = [
+- "wgpu-hal",
+-]
+-
+-[[package]]
+-name = "wgpu-core-deps-linux-android-bsd"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "wgpu-hal",
+ ]
+ 
+ [[package]]
+-name = "wgpu-core-deps-windows"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++name = "wgpu-core-deps-windows-linux-android"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "wgpu-hal",
+ ]
+ 
+ [[package]]
+ name = "wgpu-hal"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "android_system_properties",
+  "arrayvec",
+@@ -1303,8 +1294,8 @@ dependencies = [
+ 
+ [[package]]
+ name = "wgpu-naga-bridge"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "naga",
+  "wgpu-types",
+@@ -1331,8 +1322,8 @@ dependencies = [
+ 
+ [[package]]
+ name = "wgpu-types"
+-version = "30.0.0"
+-source = "git+https://github.com/gfx-rs/wgpu.git?rev=1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321#1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++version = "30.0.2"
++source = "git+https://github.com/gfx-rs/wgpu.git?rev=2b38d994b38dd001157d31fd3321111103a8dd80#2b38d994b38dd001157d31fd3321111103a8dd80"
+ dependencies = [
+  "bitflags",
+  "bytemuck",
+diff --git a/Cargo.toml b/Cargo.toml
+index 942009c..926b034 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -25,27 +25,27 @@ resolver = "2"
+ [workspace.dependencies.wgpu]
+ package = "wgpu"
+ git = "https://github.com/gfx-rs/wgpu.git"
+-rev = "1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++rev = "2b38d994b38dd001157d31fd3321111103a8dd80"
+ 
+ [workspace.dependencies.wgc]
+ package = "wgpu-core"
+ git = "https://github.com/gfx-rs/wgpu.git"
+-rev = "1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++rev = "2b38d994b38dd001157d31fd3321111103a8dd80"
+ 
+ [workspace.dependencies.wgt]
+ package = "wgpu-types"
+ git = "https://github.com/gfx-rs/wgpu.git"
+-rev = "1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++rev = "2b38d994b38dd001157d31fd3321111103a8dd80"
+ 
+ [workspace.dependencies.hal]
+ package = "wgpu-hal"
+ git = "https://github.com/gfx-rs/wgpu.git"
+-rev = "1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++rev = "2b38d994b38dd001157d31fd3321111103a8dd80"
+ 
+ [workspace.dependencies.naga]
+ package = "naga"
+ git = "https://github.com/gfx-rs/wgpu.git"
+-rev = "1a3a4cc27d8082dfd07beaf76dcf3dfb78dda321"
++rev = "2b38d994b38dd001157d31fd3321111103a8dd80"
+ 
+ [lib]
+ crate-type = ["cdylib", "rlib", "staticlib"]
+diff --git a/src/lib.rs b/src/lib.rs
+index 7248af9..7a58e93 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -5223,9 +5223,6 @@ pub extern "C" fn wgpuGetWgslLanguageFeatures() -> native::WGPUWgslLanguageFeatu
+                     ImplementedLanguageExtension::PointerCompositeAccess => {
+                         native::WGPUWgslLanguageFeatures_PointerCompositeAccess
+                     }
+-                    ImplementedLanguageExtension::ImmediateAddressSpace => {
+-                        native::WGPUWgslLanguageFeatures_ImmediateAddressSpace
+-                    }
+                 }
+             },
+         )
+@@ -6390,7 +6387,7 @@ pub unsafe extern "C" fn wgpuCommandEncoderBuildAccelerationStructures(
+                 panic!("unknown WGPUBlasGeometryKind: {}", entry.geometryKind)
+             };
+             wgc::ray_tracing::BlasBuildEntry {
+-                blas: blas_id,
++                blas_id,
+                 geometries,
+             }
+         });
+@@ -6406,7 +6403,7 @@ pub unsafe extern "C" fn wgpuCommandEncoderBuildAccelerationStructures(
+                     inst.as_ref()
+                         .map(|(blas_id, transform, custom_data, mask)| {
+                             wgc::ray_tracing::TlasInstance {
+-                                blas: *blas_id,
++                                blas_id: *blas_id,
+                                 transform,
+                                 custom_data: *custom_data,
+                                 mask: *mask,
+@@ -6415,7 +6412,7 @@ pub unsafe extern "C" fn wgpuCommandEncoderBuildAccelerationStructures(
+                 })
+                 .collect();
+             wgc::ray_tracing::TlasPackage {
+-                tlas: tlas_id,
++                tlas_id,
+                 instances: Box::new(instances.into_iter()),
+                 lowest_unmodified: pkg.lowestUnmodified,
+             }

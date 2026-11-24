@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/eng/">
+    <Project Path="eng/Generator/Generator.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Compute/Compute.csproj" />
+    <Project Path="samples/Triangle/Triangle.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/WGpuFury/WGpuFury.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WGpuFury.Tests/WGpuFury.Tests.csproj" />
+  </Folder>
+</Solution>

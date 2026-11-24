@@ -1,0 +1,4 @@
+<Project>
+  <!-- Project references don't import a package's build files, so the samples import them directly. -->
+  <Import Project="$(WGpuFuryRepoRoot)src/WGpuFury/build/WGpuFury.targets" />
+</Project>

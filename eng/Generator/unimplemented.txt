@@ -1,0 +1,6 @@
+# Functions the pinned wgpu-native declares but does not implement (they panic, which aborts the process).
+# The generator marks them [Obsolete(DiagnosticId = "WGPUFURY001")].
+#
+# Empty: eng/patches/0002-implement-futures-and-unimplemented-functions.patch implements the ones the
+# wgpu 30 port (gfx-rs/wgpu-native#630) still stubbed. When updating the source, grep wgpu-native's
+# src/ for unimplemented!() / todo!() and list any exported function that hits one here.
