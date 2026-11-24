@@ -1,0 +1,73 @@
+<Project>
+  <!--
+    How wgpu-native reaches your app.
+
+      WGpuFuryLinkage=Dynamic (default)  wgpu_native.dll / libwgpu_native.so / libwgpu_native.dylib is copied
+                                         next to the app and loaded at runtime.
+      WGpuFuryLinkage=Static             With PublishAot=true, the static library is linked into the executable
+                                         through DirectPInvoke: a single file with no native dependency to ship.
+                                         Point WGpuFuryStaticLibrary at wgpu_native.lib / libwgpu_native.a as built
+                                         by eng/build-native.cs (inside this repository it is found automatically).
+
+    Inside the WGpuFury repository WGpuFuryNativeRoot (Directory.Build.props) points at ./native, which
+    eng/build-native.cs fills. Package consumers get the dynamic libraries from runtimes/<rid>/native.
+  -->
+  <PropertyGroup>
+    <WGpuFuryLinkage Condition="'$(WGpuFuryLinkage)' == ''">Dynamic</WGpuFuryLinkage>
+    <_WGpuFuryRid>$(RuntimeIdentifier)</_WGpuFuryRid>
+    <_WGpuFuryRid Condition="'$(_WGpuFuryRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</_WGpuFuryRid>
+    <_WGpuFuryOS Condition="$(_WGpuFuryRid.StartsWith('win'))">windows</_WGpuFuryOS>
+    <_WGpuFuryOS Condition="$(_WGpuFuryRid.StartsWith('osx'))">osx</_WGpuFuryOS>
+    <_WGpuFuryOS Condition="'$(_WGpuFuryOS)' == ''">linux</_WGpuFuryOS>
+    <_WGpuFuryDynamicName Condition="'$(_WGpuFuryOS)' == 'windows'">wgpu_native.dll</_WGpuFuryDynamicName>
+    <_WGpuFuryDynamicName Condition="'$(_WGpuFuryOS)' == 'linux'">libwgpu_native.so</_WGpuFuryDynamicName>
+    <_WGpuFuryDynamicName Condition="'$(_WGpuFuryOS)' == 'osx'">libwgpu_native.dylib</_WGpuFuryDynamicName>
+    <_WGpuFuryStaticName Condition="'$(_WGpuFuryOS)' == 'windows'">wgpu_native.lib</_WGpuFuryStaticName>
+    <_WGpuFuryStaticName Condition="'$(_WGpuFuryOS)' != 'windows'">libwgpu_native.a</_WGpuFuryStaticName>
+
+    <_WGpuFuryLocalLib Condition="'$(WGpuFuryNativeRoot)' != ''">$(WGpuFuryNativeRoot)$(_WGpuFuryRid)/lib/</_WGpuFuryLocalLib>
+    <WGpuFuryStaticLibrary Condition="'$(WGpuFuryStaticLibrary)' == '' and '$(_WGpuFuryLocalLib)' != ''">$(_WGpuFuryLocalLib)$(_WGpuFuryStaticName)</WGpuFuryStaticLibrary>
+    <_WGpuFuryStatic Condition="'$(WGpuFuryLinkage)' == 'Static' and '$(PublishAot)' == 'true'">true</_WGpuFuryStatic>
+    <_WGpuFuryPublishCopy>PreserveNewest</_WGpuFuryPublishCopy>
+    <_WGpuFuryPublishCopy Condition="'$(_WGpuFuryStatic)' == 'true'">Never</_WGpuFuryPublishCopy>
+  </PropertyGroup>
+
+  <!-- In-repo builds: copy the built dynamic library to the output (and to publish, unless linking statically). -->
+  <ItemGroup Condition="'$(_WGpuFuryLocalLib)' != ''">
+    <None Include="$(_WGpuFuryLocalLib)$(_WGpuFuryDynamicName)" Link="$(_WGpuFuryDynamicName)" Visible="false"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="$(_WGpuFuryPublishCopy)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_WGpuFuryStatic)' == 'true'">
+    <DirectPInvoke Include="wgpu_native" />
+    <NativeLibrary Include="$(WGpuFuryStaticLibrary)" />
+  </ItemGroup>
+
+  <!--
+    System libraries the Rust static library needs beyond what Native AOT already links.
+    Windows: verified with win-x64 (wgpu-native's Windows crates carry their own import thunks; only userenv is missing).
+    Linux / macOS: the usual Rust staticlib requirements; not yet verified by this repository's CI.
+  -->
+  <ItemGroup Condition="'$(_WGpuFuryStatic)' == 'true' and '$(_WGpuFuryOS)' == 'windows'">
+    <NativeLibrary Include="userenv.lib" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(_WGpuFuryStatic)' == 'true' and '$(_WGpuFuryOS)' == 'linux'">
+    <LinkerArg Include="-lm;-ldl;-lpthread;-lrt" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(_WGpuFuryStatic)' == 'true' and '$(_WGpuFuryOS)' == 'osx'">
+    <LinkerArg Include="-framework Metal;-framework QuartzCore;-framework CoreGraphics;-framework Foundation;-framework IOKit;-lobjc" />
+  </ItemGroup>
+
+  <Target Name="_WGpuFuryCheckStaticLibrary" BeforeTargets="PrepareForPublish" Condition="'$(_WGpuFuryStatic)' == 'true'">
+    <Error Condition="'$(WGpuFuryStaticLibrary)' == '' or !Exists('$(WGpuFuryStaticLibrary)')"
+           Text="WGpuFuryLinkage=Static needs the wgpu-native static library ($(_WGpuFuryStaticName)) for $(_WGpuFuryRid). Set WGpuFuryStaticLibrary to its path (found: '$(WGpuFuryStaticLibrary)')." />
+  </Target>
+
+  <!-- Package consumers: when linking statically, don't also ship the dynamic library from runtimes/. -->
+  <Target Name="_WGpuFuryDropDynamicLibrary" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(_WGpuFuryStatic)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)%(Extension)' == '$(_WGpuFuryDynamicName)'" />
+    </ItemGroup>
+  </Target>
+</Project>

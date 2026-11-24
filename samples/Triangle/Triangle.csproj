@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows-only at runtime: opens a plain Win32 window so the sample needs no windowing library. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/WGpuFury/WGpuFury.csproj" />
+  </ItemGroup>
+</Project>

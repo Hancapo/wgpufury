@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # wgpu-native has no wgpu 30 release, so it is built from source: the commit pinned in
+  # eng/native.lock.json plus eng/patches (see eng/build-native.cs). Builds are cached by those inputs.
+  native:
+    name: wgpu-native ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: win-x86, os: windows-latest }
+          - { rid: win-arm64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-latest, image: manylinux_2_28_x86_64, triple: x86_64-unknown-linux-gnu }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm, image: manylinux_2_28_aarch64, triple: aarch64-unknown-linux-gnu }
+          - { rid: osx-x64, os: macos-latest }
+          - { rid: osx-arm64, os: macos-latest }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: native/${{ matrix.rid }}
+          key: wgpu-native-${{ matrix.rid }}-${{ hashFiles('eng/native.lock.json', 'eng/patches/**', 'eng/build-native.cs') }}
+
+      - name: Build (Windows, macOS)
+        if: steps.cache.outputs.cache-hit != 'true' && !matrix.image
+        run: dotnet run eng/build-native.cs -- ${{ matrix.rid }}
+
+      # Linux builds run in a manylinux container, as upstream's releases do, so the library only
+      # needs glibc 2.28. The checkout and patching happen on the host.
+      - name: Build (Linux, manylinux)
+        if: steps.cache.outputs.cache-hit != 'true' && matrix.image
+        run: |
+          dotnet run eng/build-native.cs -- --prepare
+          version=$(jq -r .version eng/native.lock.json)
+          toolchain=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' native/src/rust-toolchain.toml)
+          docker run --rm -v "$PWD/native/src:/src" -w /src -e WGPU_NATIVE_VERSION="v$version" \
+            quay.io/pypa/${{ matrix.image }} bash -c "\
+              curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none && \
+              export PATH=/root/.cargo/bin:\$PATH && \
+              rustup toolchain install $toolchain --profile minimal && \
+              dnf install -y clang-devel && \
+              cargo build --release --target ${{ matrix.triple }} && \
+              chown -R $(id -u):$(id -g) target"
+          dotnet run eng/build-native.cs -- --collect ${{ matrix.rid }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/${{ matrix.rid }}
+          include-hidden-files: true
+
+  build:
+    needs: native
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/${{ matrix.rid }}
+
+      - name: Software Vulkan (lavapipe) for the GPU tests
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers
+
+      - name: Generator output is up to date
+        shell: bash
+        run: |
+          dotnet run --project eng/Generator
+          git diff --exit-code -- src/WGpuFury/Generated tests
+
+      - name: C struct layouts (non-Windows; Windows dumps are committed)
+        if: runner.os != 'Windows'
+        run: |
+          cc -std=c11 -I native/${{ matrix.rid }}/include tests/abi/layout_probe.c -o layout_probe
+          ./layout_probe > tests/abi/${{ matrix.rid }}.json
+
+      - name: Build
+        run: dotnet build WGpuFury.slnx -c Release
+
+      - name: Test
+        run: dotnet test --solution WGpuFury.slnx -c Release --no-build
+
+      - name: Native AOT, dynamic wgpu-native
+        run: dotnet publish samples/Compute -r ${{ matrix.rid }} -o artifacts/aot-dynamic
+
+      - name: Native AOT, static wgpu-native
+        run: dotnet publish samples/Compute -r ${{ matrix.rid }} -p:WGpuFuryLinkage=Static -o artifacts/aot-static
+
+      - name: Run the AOT samples
+        if: runner.os == 'Linux'
+        run: |
+          artifacts/aot-dynamic/Compute
+          artifacts/aot-static/Compute
+
+  pack:
+    needs: native
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: native
+
+      - name: Lay out native/<rid>
+        shell: bash
+        run: for d in native/native-*; do mv "$d" "native/${d#native/native-}"; done
+
+      - name: Pack
+        run: dotnet pack src/WGpuFury -c Release -o artifacts/packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages/*.nupkg

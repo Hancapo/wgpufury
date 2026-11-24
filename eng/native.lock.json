@@ -1,0 +1,22 @@
+{
+  "version": "30.0.2.0",
+  "wgpu": "30.0.2",
+  "source": {
+    "repository": "https://github.com/gfx-rs/wgpu-native.git",
+    "commit": "8322fe1a94ad0193c3393d03fd2a2f3c565e320b",
+    "description": "Head of gfx-rs/wgpu-native#630 (wgpu 30 port, refs/pull/630/head), not yet merged or released upstream"
+  },
+  "patches": [
+    "0001-build-against-wgpu-v30.0.2.patch",
+    "0002-implement-futures-and-unimplemented-functions.patch"
+  ],
+  "targets": {
+    "win-x64": "x86_64-pc-windows-msvc",
+    "win-arm64": "aarch64-pc-windows-msvc",
+    "win-x86": "i686-pc-windows-msvc",
+    "linux-x64": "x86_64-unknown-linux-gnu",
+    "linux-arm64": "aarch64-unknown-linux-gnu",
+    "osx-x64": "x86_64-apple-darwin",
+    "osx-arm64": "aarch64-apple-darwin"
+  }
+}

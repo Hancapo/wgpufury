@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NuGet audit findings (e.g. an outdated SDK's ILCompiler pack) stay visible as warnings but do not break the build. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+
+    <!-- The wgpu-native version these bindings are built for. Keep in sync with "version" in eng/native.lock.json. -->
+    <WGpuNativeVersion>30.0.2.0</WGpuNativeVersion>
+    <WGpuFuryRepoRoot>$(MSBuildThisFileDirectory)</WGpuFuryRepoRoot>
+    <WGpuFuryNativeRoot>$(MSBuildThisFileDirectory)native/</WGpuFuryNativeRoot>
+  </PropertyGroup>
+</Project>

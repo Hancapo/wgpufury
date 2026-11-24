@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>WGpuFury</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <PackageId>WGpuFury</PackageId>
+    <Version>$(WGpuNativeVersion)</Version>
+    <Description>Native AOT friendly .NET bindings for wgpu-native $(WGpuNativeVersion) (webgpu.h + wgpu.h), generated from the C headers.</Description>
+    <PackageTags>webgpu;wgpu;gpu;graphics;compute;aot</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(WGpuFuryRepoRoot)README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(WGpuFuryRepoRoot)THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="build/WGpuFury.Native.targets" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="build/WGpuFury.targets" Pack="true" PackagePath="buildTransitive/" />
+  </ItemGroup>
+
+  <!-- Ship the dynamic library of every RID that has been built into ./native (see eng/build-native.cs). -->
+  <ItemGroup>
+    <None Pack="true" Visible="false" PackagePath="runtimes/win-x64/native/" Include="$(WGpuFuryNativeRoot)win-x64/lib/wgpu_native.dll" Condition="Exists('$(WGpuFuryNativeRoot)win-x64/lib/wgpu_native.dll')" />
+    <None Pack="true" Visible="false" PackagePath="runtimes/win-arm64/native/" Include="$(WGpuFuryNativeRoot)win-arm64/lib/wgpu_native.dll" Condition="Exists('$(WGpuFuryNativeRoot)win-arm64/lib/wgpu_native.dll')" />
+    <None Pack="true" Visible="false" PackagePath="runtimes/win-x86/native/" Include="$(WGpuFuryNativeRoot)win-x86/lib/wgpu_native.dll" Condition="Exists('$(WGpuFuryNativeRoot)win-x86/lib/wgpu_native.dll')" />
+    <None Pack="true" Visible="false" PackagePath="runtimes/linux-x64/native/" Include="$(WGpuFuryNativeRoot)linux-x64/lib/libwgpu_native.so" Condition="Exists('$(WGpuFuryNativeRoot)linux-x64/lib/libwgpu_native.so')" />
+    <None Pack="true" Visible="false" PackagePath="runtimes/linux-arm64/native/" Include="$(WGpuFuryNativeRoot)linux-arm64/lib/libwgpu_native.so" Condition="Exists('$(WGpuFuryNativeRoot)linux-arm64/lib/libwgpu_native.so')" />
+    <None Pack="true" Visible="false" PackagePath="runtimes/osx-x64/native/" Include="$(WGpuFuryNativeRoot)osx-x64/lib/libwgpu_native.dylib" Condition="Exists('$(WGpuFuryNativeRoot)osx-x64/lib/libwgpu_native.dylib')" />
+    <None Pack="true" Visible="false" PackagePath="runtimes/osx-arm64/native/" Include="$(WGpuFuryNativeRoot)osx-arm64/lib/libwgpu_native.dylib" Condition="Exists('$(WGpuFuryNativeRoot)osx-arm64/lib/libwgpu_native.dylib')" />
+  </ItemGroup>
+
+  <!--
+    Refuse to pack native libraries built from different sources: every native/<rid>/.version holds
+    "<version> <source hash>" (written by eng/build-native.cs), and all of them must agree with each other
+    and with WGpuNativeVersion. This catches stale directories left over from an earlier pin.
+  -->
+  <Target Name="_WGpuFuryCheckNativeVersions" BeforeTargets="GenerateNuspec">
+    <ItemGroup>
+      <_WGpuFuryNativeStamp Include="$(WGpuFuryNativeRoot)*/.version" />
+      <_WGpuFuryStampText Include="$([System.IO.File]::ReadAllText('%(_WGpuFuryNativeStamp.FullPath)').Trim())" />
+    </ItemGroup>
+    <Error Condition="'@(_WGpuFuryNativeStamp)' == ''" Text="No native libraries under $(WGpuFuryNativeRoot); run: dotnet run eng/build-native.cs -- &lt;rids&gt;" />
+    <Error Condition="!$([System.IO.File]::ReadAllText('%(_WGpuFuryNativeStamp.FullPath)').StartsWith('$(WGpuNativeVersion) '))"
+           Text="%(_WGpuFuryNativeStamp.FullPath) is not a $(WGpuNativeVersion) build; rebuild it with eng/build-native.cs or delete it." />
+    <Error Condition="'@(_WGpuFuryStampText->Distinct()->Count())' != '1'"
+           Text="The native/&lt;rid&gt; directories were built from different sources (@(_WGpuFuryStampText->Distinct(), ', ')); rebuild them with eng/build-native.cs." />
+  </Target>
+</Project>
