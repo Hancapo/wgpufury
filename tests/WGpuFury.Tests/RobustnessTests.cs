@@ -125,7 +125,9 @@ public sealed unsafe class RobustnessTests
         string report = Path.GetTempFileName();
         try
         {
-            var psi = new ProcessStartInfo(Path.ChangeExtension(typeof(RobustnessTests).Assembly.Location, ".exe"))
+            // The test project's executable: WGpuFury.Tests.exe on Windows, WGpuFury.Tests elsewhere.
+            string executable = Path.ChangeExtension(typeof(RobustnessTests).Assembly.Location, OperatingSystem.IsWindows() ? ".exe" : null);
+            var psi = new ProcessStartInfo(executable)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
