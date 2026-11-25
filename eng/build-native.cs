@@ -8,6 +8,9 @@
 //   dotnet run eng/build-native.cs -- --collect linux-x64  # only copy an existing cargo build
 //   dotnet run eng/build-native.cs -- --force            # rebuild even if native/<rid> is current
 //
+// Upkeep: do the patches still apply to newer upstream commits? Each defaults to the pinned commit.
+//   dotnet run eng/build-native.cs -- --check-patches --check-source=<wgpu-native commit> --check-wgpu=<wgpu commit>
+//
 // Needs git, rustup (the toolchain comes from wgpu-native's rust-toolchain.toml) and libclang
 // for bindgen. On Windows, LIBCLANG_PATH defaults to the LLVM installer's location.
 #:property PublishAot=false
@@ -29,6 +32,13 @@ JsonObject targets = lockFile["targets"]!.AsObject();
 string wgpuRepository = (string)lockFile["wgpuSource"]!["repository"]!;
 string wgpuCommit = (string)lockFile["wgpuSource"]!["commit"]!;
 string[] wgpuPatches = lockFile["wgpuSource"]!["patches"]!.AsArray().Select(p => Path.Combine(repoRoot, "eng", "patches", (string)p!)).ToArray();
+
+string? checkSource = Option("--check-source");
+string? checkWgpu = Option("--check-wgpu");
+if (args.Contains("--check-patches") || checkSource != null || checkWgpu != null)
+{
+    return CheckPatches(checkSource ?? commit, checkWgpu ?? wgpuCommit);
+}
 
 bool prepareOnly = args.Contains("--prepare");
 bool collectOnly = args.Contains("--collect");
@@ -267,6 +277,84 @@ static void RunWith(string cwd, string file, Dictionary<string, string> env, par
     {
         throw new InvalidOperationException($"'{file} {string.Join(' ', arguments)}' exited with {code}");
     }
+}
+
+// `--name=value`, or null.
+string? Option(string name) =>
+    args.FirstOrDefault(a => a.StartsWith(name + "=", StringComparison.Ordinal))?[(name.Length + 1)..];
+
+// Applies the patches, one by one with 3-way merges, onto other commits (a new wgpu-native or wgpu release, say) in
+// throwaway checkouts under native/upstream-check. Prints a Markdown report, also written to the job summary in
+// GitHub Actions. Returns 0 if every patch still applies. A patch that doesn't apply is skipped, so the later ones
+// are still tried; one that needed it fails too.
+int CheckPatches(string sourceTarget, string wgpuTarget)
+{
+    string root = Path.Combine(repoRoot, "native", "upstream-check");
+    var report = new StringBuilder("| Repository | Commit | Patch | Result |\n|---|---|---|---|\n");
+    bool sourceOk = CheckOnto(Path.Combine(root, "wgpu-native"), repository, commit, sourceTarget, patches, report);
+    bool wgpuOk = CheckOnto(Path.Combine(root, "wgpu"), wgpuRepository, wgpuCommit, wgpuTarget, wgpuPatches, report);
+    report.Append($"\nThe checkouts are in `native/upstream-check`. To rebase a patch, fix it there, commit, and regenerate it with `git format-patch`.\n");
+
+    Console.WriteLine(report);
+    if (Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY") is { Length: > 0 } summary)
+    {
+        File.AppendAllText(summary, report.ToString());
+    }
+
+    return sourceOk && wgpuOk ? 0 : 1;
+}
+
+bool CheckOnto(string dir, string repo, string pinned, string target, string[] patchFiles, StringBuilder report)
+{
+    Checkout(dir, repo, target, [], submodule: null);
+    // The patches were made against the pinned commit: its blobs let git reconstruct their base for 3-way merges.
+    if (!RunOk(dir, "git", "cat-file", "-e", pinned + "^{commit}"))
+    {
+        Run(dir, "git", "fetch", "--quiet", "--depth", "1", "origin", pinned);
+    }
+
+    string name = Path.GetFileNameWithoutExtension(repo);
+    string shortTarget = target.Length > 12 ? target[..12] : target;
+    bool allApply = true;
+    foreach (string patch in patchFiles)
+    {
+        (int code, string output) = Capture(dir, "git", "-c", "user.name=WGpuFury", "-c", "user.email=wgpufury@users.noreply.github.com", "am", "--3way", "--keep-cr", patch);
+        string result;
+        if (code == 0)
+        {
+            result = output.Contains("3-way merge", StringComparison.Ordinal) ? "applies with a 3-way merge" : "applies";
+        }
+        else
+        {
+            allApply = false;
+            string[] conflicts = output.Split('\n')
+                .Where(l => l.StartsWith("CONFLICT", StringComparison.Ordinal) || l.StartsWith("error:", StringComparison.Ordinal))
+                .Select(l => l.Trim().Replace("|", "\\|", StringComparison.Ordinal))
+                .Take(3)
+                .ToArray();
+            result = "**doesn't apply**" + (conflicts.Length > 0 ? ": " + string.Join("; ", conflicts) : "");
+            RunOk(dir, "git", "am", "--abort");
+        }
+
+        report.Append($"| {name} | `{shortTarget}`{(target == pinned ? " (pinned)" : "")} | {Path.GetRelativePath(Path.Combine(repoRoot, "eng", "patches"), patch).Replace('\\', '/')} | {result} |\n");
+    }
+
+    return allApply;
+}
+
+static (int Code, string Output) Capture(string cwd, string file, params string[] arguments)
+{
+    var psi = new ProcessStartInfo(file) { WorkingDirectory = cwd, RedirectStandardError = true, RedirectStandardOutput = true };
+    foreach (string a in arguments)
+    {
+        psi.ArgumentList.Add(a);
+    }
+
+    using Process process = Process.Start(psi)!;
+    Task<string> stderr = process.StandardError.ReadToEndAsync();
+    string output = process.StandardOutput.ReadToEnd() + stderr.Result;
+    process.WaitForExit();
+    return (process.ExitCode, output);
 }
 
 static bool RunOk(string cwd, string file, params string[] arguments) =>
