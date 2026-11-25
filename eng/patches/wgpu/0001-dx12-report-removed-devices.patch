@@ -1,0 +1,70 @@
+From 1f880f7a083e06f15b50c1b050a68814f9bdeaf2 Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 16:10:27 -0300
+Subject: [PATCH] dx12: report a removed device instead of treating it as
+ finished work
+
+A removed Direct3D 12 device reports every fence as complete (UINT64_MAX),
+and Signal keeps succeeding, so wgpu-hal never returned an error: wgpu-core
+saw an idle queue and never lost the device, and no device-lost callback
+fired. get_fence_value and wait now check for UINT64_MAX and report the
+device's removal reason (GetDeviceRemovedReason) as a device error, which
+wgpu-core turns into a lost device, as wait_for_present_queue_idle already
+did.
+---
+ wgpu-hal/src/dx12/device.rs | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/wgpu-hal/src/dx12/device.rs b/wgpu-hal/src/dx12/device.rs
+index 63fb313..531b2b2 100644
+--- a/wgpu-hal/src/dx12/device.rs
++++ b/wgpu-hal/src/dx12/device.rs
+@@ -256,6 +256,18 @@ impl super::Device {
+         signature.ok_or(crate::DeviceError::Unexpected)
+     }
+ 
++    /// A removed device reports every fence as complete (`UINT64_MAX`), so that value must
++    /// not be mistaken for finished work: report why the device was removed, as a lost device.
++    fn check_completed_value(&self, value: crate::FenceValue) -> Result<(), crate::DeviceError> {
++        if value != u64::MAX {
++            return Ok(());
++        }
++        unsafe { self.raw.GetDeviceRemovedReason() }.into_device_result("Device removed")?;
++        // UINT64_MAX without a removal reason: a fence can't legitimately reach it either.
++        log::error!("Fence reported UINT64_MAX, but the device has no removal reason");
++        Err(crate::DeviceError::Lost)
++    }
++
+     // Blocks until the dedicated present queue is finished with all of its work.
+     //
+     // Once this method completes, the surface is able to be resized or deleted.
+@@ -2356,7 +2368,9 @@ impl crate::Device for super::Device {
+         &self,
+         fence: &super::Fence,
+     ) -> Result<crate::FenceValue, crate::DeviceError> {
+-        Ok(unsafe { fence.raw.GetCompletedValue() })
++        let value = unsafe { fence.raw.GetCompletedValue() };
++        self.check_completed_value(value)?;
++        Ok(value)
+     }
+     unsafe fn wait(
+         &self,
+@@ -2368,6 +2382,7 @@ impl crate::Device for super::Device {
+ 
+         // We first check if the fence has already reached the value we're waiting for.
+         let mut fence_value = unsafe { fence.raw.GetCompletedValue() };
++        self.check_completed_value(fence_value)?;
+         if fence_value >= value {
+             return Ok(true);
+         }
+@@ -2431,6 +2446,7 @@ impl crate::Device for super::Device {
+ 
+             fence_value = unsafe { fence.raw.GetCompletedValue() };
+             log::trace!("Wait complete! Fence actual value: {fence_value}");
++            self.check_completed_value(fence_value)?;
+ 
+             if fence_value >= value {
+                 break Ok(true);
+-- 
+2.55.0.windows.3
+
