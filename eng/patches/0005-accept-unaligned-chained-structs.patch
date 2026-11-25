@@ -1,0 +1,97 @@
+From 4ebf36d33661d99cc0822a68bec3a08c59415618 Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 16:55:14 -0300
+Subject: [PATCH] Accept chained structs that aren't aligned
+
+follow_chain asserted that every chained struct is aligned for its type,
+and the panic aborts the process. .NET on 32-bit Windows can't guarantee
+that: it puts structs with 64-bit fields (WGPUInstanceExtras, for one) on
+4-byte boundaries, so about half the time wgpuCreateInstance aborted. The
+chained structs are now copied with an unaligned read instead.
+---
+ src/utils.rs | 29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/src/utils.rs b/src/utils.rs
+index e870356..202773e 100644
+--- a/src/utils.rs
++++ b/src/utils.rs
+@@ -122,6 +122,7 @@ pub fn texture_format_has_depth(format: wgt::TextureFormat) -> bool {
+ /// - All structures used as extension objects must be `#[repr(C)]`.
+ /// - All structures used as extension objects must have `pub next_in_chain: Option<&ChainedStruct>` and `pub s_type: SType`
+ ///   as the first and second members respectively.
++/// - Extension objects are copied with an unaligned read, so they need not be aligned.
+ ///
+ /// The result of these rules, and the fact that wgpu-native functions using it do not validate all these assumptions,
+ /// using this macro is an indication that the function itself must be made unsafe.
+@@ -136,7 +137,7 @@ macro_rules! follow_chain {
+     #[allow(non_snake_case)] // We use the type name as an easily usable temporary name
+     {
+         $(
+-            let mut $stype: Option<&$ty> = None;
++            let mut $stype: Option<$ty> = None;
+         )*
+         let mut chain_opt: Option<&$crate::native::WGPUChainedStruct> = $base.nextInChain.as_ref();
+         while let Some(next_in_chain) = chain_opt {
+@@ -144,27 +145,23 @@ macro_rules! follow_chain {
+                 $(
+                     $crate::native::$stype => {
+                         let next_in_chain_ptr = next_in_chain as *const $crate::native::WGPUChainedStruct;
+-                        assert_eq!(
+-                            0,
+-                            next_in_chain_ptr.align_offset(::std::mem::align_of::<$ty>()),
+-                            concat!("Chain structure pointer is not aligned correctly to dereference as ", stringify!($ty), ". Correct alignment: {}"),
+-                            ::std::mem::align_of::<$ty>()
+-                        );
++                        // Copied, because callers can't always align the struct: .NET on 32-bit
++                        // Windows puts structs with 64-bit fields on 4-byte boundaries.
+                         let type_ptr: *const $ty = next_in_chain_ptr as _;
+-                        $stype = Some(&*type_ptr);
++                        $stype = Some(type_ptr.read_unaligned());
+                     }
+                 )*
+                 _ => {}
+             }
+             chain_opt = next_in_chain.next.as_ref();
+         }
+-        $func($base, $($stype),*)
++        $func($base, $($stype.as_ref()),*)
+     }}};
+     ($func:ident(($base1:expr, $base2:expr) $(, $stype:ident => $ty:ty)*)) => {{
+         #[allow(non_snake_case)] // We use the type name as an easily usable temporary name
+         {
+             $(
+-                let mut $stype: Option<&$ty> = None;
++                let mut $stype: Option<$ty> = None;
+             )*
+             let mut chain_opt: Option<&$crate::native::WGPUChainedStruct> = ($base1.nextInChain as *const $crate::native::WGPUChainedStruct).as_ref();
+             while let Some(next_in_chain) = chain_opt {
+@@ -172,21 +169,17 @@ macro_rules! follow_chain {
+                     $(
+                         $crate::native::$stype => {
+                             let next_in_chain_ptr = next_in_chain as *const $crate::native::WGPUChainedStruct;
+-                            assert_eq!(
+-                                0,
+-                                next_in_chain_ptr.align_offset(::std::mem::align_of::<$ty>()),
+-                                concat!("Chain structure pointer is not aligned correctly to dereference as ", stringify!($ty), ". Correct alignment: {}"),
+-                                ::std::mem::align_of::<$ty>()
+-                            );
++                            // Copied, because callers can't always align the struct: .NET on 32-bit
++                            // Windows puts structs with 64-bit fields on 4-byte boundaries.
+                             let type_ptr: *const $ty = next_in_chain_ptr as _;
+-                            $stype = Some(&*type_ptr);
++                            $stype = Some(type_ptr.read_unaligned());
+                         }
+                     )*
+                     _ => {}
+                 }
+                 chain_opt = next_in_chain.next.as_ref();
+             }
+-            $func($base1, $base2, $($stype),*)
++            $func($base1, $base2, $($stype.as_ref()),*)
+         }}};
+ }
+ 
+-- 
+2.55.0.windows.3
+

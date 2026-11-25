@@ -1,0 +1,45 @@
+From dff19c6d0c9acf867d5cec227b0c3fcb5f3dc777 Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 16:54:19 -0300
+Subject: [PATCH] dx12: align pipeline state stream subobjects to pointer size
+
+Direct3D 12 parses a pipeline state stream as d3dx12.h lays it out: each
+subobject struct is alignas(void*). wgpu-hal padded every subobject to 8
+bytes, which only matches on 64-bit targets. In a 32-bit process the
+runtime misread the stream, and every render pipeline failed with
+E_INVALIDARG ("Shader translation error for stage VERTEX | FRAGMENT: The
+parameter is incorrect"), on hardware and WARP alike. Subobjects now start
+on a pointer-size boundary, or on their data's alignment if larger, which is
+unchanged on 64-bit targets.
+---
+ wgpu-hal/src/dx12/pipeline_desc.rs | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/wgpu-hal/src/dx12/pipeline_desc.rs b/wgpu-hal/src/dx12/pipeline_desc.rs
+index 9fcf566..c2e7459 100644
+--- a/wgpu-hal/src/dx12/pipeline_desc.rs
++++ b/wgpu-hal/src/dx12/pipeline_desc.rs
+@@ -96,7 +96,8 @@ implement_stream_object! { unsafe D3D12_VIEW_INSTANCING_DESC => D3D12_PIPELINE_S
+ /// Implementaation of a pipeline state stream, which is a sequence of subobjects put into
+ /// a byte array according to some basic alignment rules.
+ ///
+-/// Each subobject must start on an 8 byte boundary. Each subobject contains a 32 bit
++/// Each subobject must start on a pointer-size boundary (`alignas(void*)` in d3dx12.h), or
++/// on the subobject data's own alignment if that is larger. Each subobject contains a 32 bit
+ /// type identifier, followed by the actual subobject data, aligned as required by the
+ /// subobject's structure.
+ ///
+@@ -131,8 +132,8 @@ impl<'a> RenderPipelineStateStream<'a> {
+ 
+     /// Adds a subobject to the pipeline state stream.
+     fn add_object<T: RenderPipelineStreamObject>(&mut self, object: T) {
+-        // Ensure 8-byte alignment for the subobject start.
+-        self.align_to(8);
++        // Pointer-size alignment, not 8 bytes: a 32-bit stream padded to 8 is misparsed.
++        self.align_to(align_of::<usize>().max(align_of_val::<T>(&object)));
+ 
+         // Append the type tag (u32)
+         let tag: u32 = T::SUBOBJECT_TYPE.0 as u32;
+-- 
+2.55.0.windows.3
+
