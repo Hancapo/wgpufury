@@ -1,0 +1,449 @@
+From 245180ffb25de83022a4742dccec657609a4c052 Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 17:39:06 -0300
+Subject: [PATCH] Add WGPUInstanceFlag_D3D12DRED: say what the GPU was doing
+ when it was removed
+
+With the flag (or WithEnv and WGPU_D3D12_DRED=1), wgpu-native turns on
+Direct3D 12 Device Removed Extended Data before devices are created:
+auto-breadcrumbs with their PIX event and marker names, and page-fault
+tracking. When a device is removed, the device-lost message then names
+each command list the GPU didn't finish, the operation it stopped at, the
+debug groups around it, and a page-fault address with the allocations
+there. d3d12.dll is loaded at run time, as wgpu-hal does.
+---
+ Cargo.lock  |   1 +
+ Cargo.toml  |   5 +
+ ffi/wgpu.h  |  13 +++
+ src/conv.rs |  16 +++
+ src/dred.rs | 304 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib.rs  |   9 +-
+ 6 files changed, 347 insertions(+), 1 deletion(-)
+ create mode 100644 src/dred.rs
+
+diff --git a/Cargo.lock b/Cargo.lock
+index 5854494..d05d52a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1318,6 +1318,7 @@ dependencies = [
+  "wgpu-core",
+  "wgpu-hal",
+  "wgpu-types",
++ "windows",
+ ]
+ 
+ [[package]]
+diff --git a/Cargo.toml b/Cargo.toml
+index 926b034..c65d41a 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -137,6 +137,11 @@ hal = { workspace = true, features = ["renderdoc"] }
+ 
+ [target.'cfg(windows)'.dependencies]
+ hal = { workspace = true, features = ["dx12", "renderdoc"] }
++windows = { version = "0.62", features = [
++    "Win32_Foundation",
++    "Win32_Graphics_Direct3D12",
++    "Win32_System_LibraryLoader",
++] }
+ 
+ [dependencies.wgt]
+ workspace = true
+diff --git a/ffi/wgpu.h b/ffi/wgpu.h
+index 7ea1321..06a4590 100644
+--- a/ffi/wgpu.h
++++ b/ffi/wgpu.h
+@@ -1148,6 +1148,19 @@ static const WGPUInstanceFlag WGPUInstanceFlag_AutomaticTimestampNormalization =
+  * @c WGPU_STRICT_WEBGPU_COMPLIANCE environment variable.
+  */
+ static const WGPUInstanceFlag WGPUInstanceFlag_StrictWebgpuCompliance = 1 << 7;
++/**
++ * Turn on Direct3D 12 Device Removed Extended Data (DRED): Direct3D records how far the GPU got
++ * through each command list, with the debug groups and pass labels around it, and the address of
++ * a GPU page fault. When a device is removed, the device-lost message then says which command
++ * list stopped at which operation, inside which debug groups.
++ *
++ * It applies to every Direct3D 12 device created afterwards in the process, and costs some GPU
++ * time, so it is meant for test builds. Ignored on other backends and platforms.
++ *
++ * When using @ref WGPUInstanceFlag_WithEnv, it is also turned on when the
++ * @c WGPU_D3D12_DRED environment variable is 1 or true.
++ */
++static const WGPUInstanceFlag WGPUInstanceFlag_D3D12DRED = 1 << 16;
+ /**
+  * Use the default flags for the current build configuration.
+  * In debug builds, this typically enables @ref WGPUInstanceFlag_Debug and
+diff --git a/src/conv.rs b/src/conv.rs
+index 5e26abf..f518f53 100644
+--- a/src/conv.rs
++++ b/src/conv.rs
+@@ -335,6 +335,17 @@ pub fn map_instance_backend_flags(flags: native::WGPUInstanceBackend) -> wgt::Ba
+     result
+ }
+ 
++/// `WGPUInstanceFlag_D3D12DRED`, or `WGPUInstanceFlag_WithEnv` with `WGPU_D3D12_DRED` set to 1 or true.
++#[cfg(windows)]
++fn wants_dred(flags: native::WGPUInstanceFlag) -> bool {
++    if (flags & native::WGPUInstanceFlag_D3D12DRED) != 0 {
++        return true;
++    }
++    (flags & native::WGPUInstanceFlag_WithEnv) != 0
++        && std::env::var("WGPU_D3D12_DRED")
++            .is_ok_and(|value| value == "1" || value.eq_ignore_ascii_case("true"))
++}
++
+ #[inline]
+ pub fn map_instance_flags(flags: native::WGPUInstanceFlag) -> wgt::InstanceFlags {
+     let mut result = wgt::InstanceFlags::empty();
+@@ -397,6 +408,11 @@ pub unsafe fn map_instance_descriptor(
+     extras: Option<&native::WGPUInstanceExtras>,
+ ) -> wgt::InstanceDescriptor {
+     if let Some(extras) = extras {
++        #[cfg(windows)]
++        if wants_dred(extras.flags) {
++            crate::dred::enable();
++        }
++
+         let dx12_shader_compiler = match extras.dx12ShaderCompiler {
+             native::WGPUDx12Compiler_Fxc => wgt::Dx12Compiler::Fxc,
+             native::WGPUDx12Compiler_Dxc => match string_view_into_str(extras.dxcPath) {
+diff --git a/src/dred.rs b/src/dred.rs
+new file mode 100644
+index 0000000..442afd2
+--- /dev/null
++++ b/src/dred.rs
+@@ -0,0 +1,304 @@
++//! Direct3D 12 Device Removed Extended Data (DRED). When it is on, Direct3D records how far the GPU
++//! got through each command list ("breadcrumbs", with the PIX event and marker names around them)
++//! and the address of a GPU page fault. After a device removal, [`report`] turns that into text for
++//! the device-lost message, which says what the GPU was doing when it hung or faulted.
++//!
++//! Turned on by `WGPUInstanceFlag_D3D12DRED`. It applies to the whole process and costs a little
++//! GPU time, so it is meant for test builds.
++
++use std::collections::HashMap;
++use std::fmt::Write as _;
++use std::sync::atomic::{AtomicBool, Ordering};
++
++use windows::core::{s, Interface, GUID, HRESULT, PCWSTR};
++use windows::Win32::Foundation::E_NOINTERFACE;
++use windows::Win32::Graphics::Direct3D12::*;
++use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
++
++static ENABLED: AtomicBool = AtomicBool::new(false);
++
++/// Turns DRED on for every Direct3D 12 device created after this in the process.
++pub(crate) fn enable() {
++    if ENABLED.load(Ordering::Acquire) {
++        return;
++    }
++    match unsafe { try_enable() } {
++        Ok(()) => ENABLED.store(true, Ordering::Release),
++        Err(error) => log::warn!("Direct3D 12 DRED is not available: {error}"),
++    }
++}
++
++unsafe fn try_enable() -> windows::core::Result<()> {
++    type GetDebugInterface =
++        unsafe extern "system" fn(*const GUID, *mut *mut core::ffi::c_void) -> HRESULT;
++
++    // d3d12.dll is loaded when needed, as wgpu-hal does, instead of being linked.
++    let module = unsafe { LoadLibraryA(s!("d3d12.dll")) }?;
++    let proc = unsafe { GetProcAddress(module, s!("D3D12GetDebugInterface")) }
++        .ok_or(windows::core::Error::from(E_NOINTERFACE))?;
++    let get_debug_interface: GetDebugInterface = unsafe { core::mem::transmute(proc) };
++
++    let mut settings: Option<ID3D12DeviceRemovedExtendedDataSettings> = None;
++    unsafe {
++        get_debug_interface(
++            &ID3D12DeviceRemovedExtendedDataSettings::IID,
++            (&mut settings as *mut Option<_>).cast(),
++        )
++    }
++    .ok()?;
++    let settings = settings.ok_or(windows::core::Error::from(E_NOINTERFACE))?;
++    unsafe {
++        settings.SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
++        settings.SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
++        if let Ok(settings) = settings.cast::<ID3D12DeviceRemovedExtendedDataSettings1>() {
++            settings.SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
++        }
++    }
++    Ok(())
++}
++
++/// What DRED recorded before `device` was removed, or `None` if DRED is off.
++pub(crate) fn report(device: &ID3D12Device) -> Option<String> {
++    if !ENABLED.load(Ordering::Acquire) {
++        return None;
++    }
++    let dred = device.cast::<ID3D12DeviceRemovedExtendedData1>().ok()?;
++    let mut out = String::from("DRED:");
++
++    match unsafe { dred.GetAutoBreadcrumbsOutput1() } {
++        Ok(breadcrumbs) => {
++            let (mut recorded, mut unfinished) = (0, 0);
++            let mut node = breadcrumbs.pHeadAutoBreadcrumbNode;
++            while let Some(list) = unsafe { node.as_ref() } {
++                recorded += 1;
++                if describe_unfinished(list, &mut out) {
++                    unfinished += 1;
++                }
++                node = list.pNext;
++            }
++            if unfinished == 0 {
++                let _ = write!(
++                    out,
++                    " the {recorded} command lists it recorded had all finished."
++                );
++            }
++        }
++        Err(error) => {
++            let _ = write!(out, " no breadcrumbs ({error}).");
++        }
++    }
++
++    if let Ok(fault) = unsafe { dred.GetPageFaultAllocationOutput1() } {
++        if fault.PageFaultVA != 0 {
++            let _ = write!(out, " GPU page fault at 0x{:X}", fault.PageFaultVA);
++            let existing = allocation_names(fault.pHeadExistingAllocationNode);
++            let freed = allocation_names(fault.pHeadRecentFreedAllocationNode);
++            if !existing.is_empty() {
++                let _ = write!(out, ", in {}", existing.join(", "));
++            }
++            if !freed.is_empty() {
++                let _ = write!(out, ", in recently freed {}", freed.join(", "));
++            }
++            out.push('.');
++        }
++    }
++    Some(out)
++}
++
++/// Appends a description of `list` if the GPU didn't finish it, and returns whether it didn't.
++fn describe_unfinished(list: &D3D12_AUTO_BREADCRUMB_NODE1, out: &mut String) -> bool {
++    let count = list.BreadcrumbCount as usize;
++    let done = unsafe { list.pLastBreadcrumbValue.as_ref() }.map_or(0, |&value| value as usize);
++    if done >= count || list.pCommandHistory.is_null() {
++        return false;
++    }
++    let history = unsafe { core::slice::from_raw_parts(list.pCommandHistory, count) };
++
++    let mut names = HashMap::new();
++    if !list.pBreadcrumbContexts.is_null() {
++        let contexts = unsafe {
++            core::slice::from_raw_parts(
++                list.pBreadcrumbContexts,
++                list.BreadcrumbContextsCount as usize,
++            )
++        };
++        for context in contexts {
++            names.insert(
++                context.BreadcrumbIndex as usize,
++                wide(context.pContextString),
++            );
++        }
++    }
++
++    // The PIX events (debug groups, pass labels) that were open at the operation that didn't finish.
++    let mut events = Vec::new();
++    for (index, op) in history.iter().enumerate().take(done + 1) {
++        if *op == D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT {
++            events.push(names.get(&index).cloned().flatten().unwrap_or_default());
++        } else if *op == D3D12_AUTO_BREADCRUMB_OP_ENDEVENT {
++            events.pop();
++        }
++    }
++
++    let _ = write!(
++        out,
++        " command list {} on queue {} stopped after {done} of {count} operations, at {}",
++        quoted(list.pCommandListDebugNameW),
++        quoted(list.pCommandQueueDebugNameW),
++        op_name(history[done]),
++    );
++    let events: Vec<_> = events.into_iter().filter(|name| !name.is_empty()).collect();
++    if !events.is_empty() {
++        let _ = write!(out, " inside \"{}\"", events.join("\" > \""));
++    }
++    out.push('.');
++    true
++}
++
++fn allocation_names(mut node: *const D3D12_DRED_ALLOCATION_NODE1) -> Vec<String> {
++    let mut names = Vec::new();
++    while let Some(allocation) = unsafe { node.as_ref() } {
++        if let Some(name) = wide(allocation.ObjectNameW) {
++            names.push(format!("\"{name}\""));
++        }
++        node = allocation.pNext;
++    }
++    names
++}
++
++fn wide(text: PCWSTR) -> Option<String> {
++    if text.is_null() {
++        return None;
++    }
++    unsafe { text.to_string() }
++        .ok()
++        .filter(|text| !text.is_empty())
++}
++
++fn quoted(text: PCWSTR) -> String {
++    wide(text).map_or_else(|| "(unnamed)".to_string(), |text| format!("\"{text}\""))
++}
++
++fn op_name(op: D3D12_AUTO_BREADCRUMB_OP) -> String {
++    let name = match op {
++        D3D12_AUTO_BREADCRUMB_OP_SETMARKER => "SetMarker",
++        D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT => "BeginEvent",
++        D3D12_AUTO_BREADCRUMB_OP_ENDEVENT => "EndEvent",
++        D3D12_AUTO_BREADCRUMB_OP_DRAWINSTANCED => "DrawInstanced",
++        D3D12_AUTO_BREADCRUMB_OP_DRAWINDEXEDINSTANCED => "DrawIndexedInstanced",
++        D3D12_AUTO_BREADCRUMB_OP_EXECUTEINDIRECT => "ExecuteIndirect",
++        D3D12_AUTO_BREADCRUMB_OP_DISPATCH => "Dispatch",
++        D3D12_AUTO_BREADCRUMB_OP_COPYBUFFERREGION => "CopyBufferRegion",
++        D3D12_AUTO_BREADCRUMB_OP_COPYTEXTUREREGION => "CopyTextureRegion",
++        D3D12_AUTO_BREADCRUMB_OP_COPYRESOURCE => "CopyResource",
++        D3D12_AUTO_BREADCRUMB_OP_COPYTILES => "CopyTiles",
++        D3D12_AUTO_BREADCRUMB_OP_RESOLVESUBRESOURCE => "ResolveSubresource",
++        D3D12_AUTO_BREADCRUMB_OP_CLEARRENDERTARGETVIEW => "ClearRenderTargetView",
++        D3D12_AUTO_BREADCRUMB_OP_CLEARUNORDEREDACCESSVIEW => "ClearUnorderedAccessView",
++        D3D12_AUTO_BREADCRUMB_OP_CLEARDEPTHSTENCILVIEW => "ClearDepthStencilView",
++        D3D12_AUTO_BREADCRUMB_OP_RESOURCEBARRIER => "ResourceBarrier",
++        D3D12_AUTO_BREADCRUMB_OP_EXECUTEBUNDLE => "ExecuteBundle",
++        D3D12_AUTO_BREADCRUMB_OP_PRESENT => "Present",
++        D3D12_AUTO_BREADCRUMB_OP_RESOLVEQUERYDATA => "ResolveQueryData",
++        D3D12_AUTO_BREADCRUMB_OP_BEGINSUBMISSION => "BeginSubmission",
++        D3D12_AUTO_BREADCRUMB_OP_ENDSUBMISSION => "EndSubmission",
++        D3D12_AUTO_BREADCRUMB_OP_WRITEBUFFERIMMEDIATE => "WriteBufferImmediate",
++        D3D12_AUTO_BREADCRUMB_OP_BUILDRAYTRACINGACCELERATIONSTRUCTURE => {
++            "BuildRaytracingAccelerationStructure"
++        }
++        D3D12_AUTO_BREADCRUMB_OP_DISPATCHRAYS => "DispatchRays",
++        D3D12_AUTO_BREADCRUMB_OP_SETPIPELINESTATE1 => "SetPipelineState1",
++        D3D12_AUTO_BREADCRUMB_OP_DISPATCHMESH => "DispatchMesh",
++        D3D12_AUTO_BREADCRUMB_OP_BARRIER => "Barrier",
++        D3D12_AUTO_BREADCRUMB_OP_BEGIN_COMMAND_LIST => "BeginCommandList",
++        _ => return format!("operation {}", op.0),
++    };
++    name.to_string()
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    fn wide_str(text: &str) -> Vec<u16> {
++        text.encode_utf16().chain([0]).collect()
++    }
++
++    #[test]
++    fn describes_the_operation_a_command_list_stopped_at() {
++        let list_name = wide_str("frame encoder");
++        let outer = wide_str("shadow pass");
++        let inner = wide_str("cascade 2");
++        let history = [
++            D3D12_AUTO_BREADCRUMB_OP_BEGIN_COMMAND_LIST,
++            D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT,
++            D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT,
++            D3D12_AUTO_BREADCRUMB_OP_DRAWINSTANCED,
++            D3D12_AUTO_BREADCRUMB_OP_DRAWINDEXEDINSTANCED,
++            D3D12_AUTO_BREADCRUMB_OP_ENDEVENT,
++            D3D12_AUTO_BREADCRUMB_OP_ENDEVENT,
++        ];
++        let mut contexts = [
++            D3D12_DRED_BREADCRUMB_CONTEXT {
++                BreadcrumbIndex: 1,
++                pContextString: PCWSTR(outer.as_ptr()),
++            },
++            D3D12_DRED_BREADCRUMB_CONTEXT {
++                BreadcrumbIndex: 2,
++                pContextString: PCWSTR(inner.as_ptr()),
++            },
++        ];
++        let completed = 4u32;
++        let list = D3D12_AUTO_BREADCRUMB_NODE1 {
++            pCommandListDebugNameW: PCWSTR(list_name.as_ptr()),
++            BreadcrumbCount: history.len() as u32,
++            pLastBreadcrumbValue: &completed,
++            pCommandHistory: history.as_ptr(),
++            BreadcrumbContextsCount: contexts.len() as u32,
++            pBreadcrumbContexts: contexts.as_mut_ptr(),
++            ..Default::default()
++        };
++
++        let mut out = String::new();
++        assert!(describe_unfinished(&list, &mut out));
++        assert_eq!(
++            out,
++            " command list \"frame encoder\" on queue (unnamed) stopped after 4 of 7 operations, \
++             at DrawIndexedInstanced inside \"shadow pass\" > \"cascade 2\"."
++        );
++    }
++
++    #[test]
++    fn skips_finished_command_lists() {
++        let history = [D3D12_AUTO_BREADCRUMB_OP_DISPATCH];
++        let completed = 1u32;
++        let list = D3D12_AUTO_BREADCRUMB_NODE1 {
++            BreadcrumbCount: 1,
++            pLastBreadcrumbValue: &completed,
++            pCommandHistory: history.as_ptr(),
++            ..Default::default()
++        };
++        let mut out = String::new();
++        assert!(!describe_unfinished(&list, &mut out));
++        assert!(out.is_empty());
++
++        let no_history = D3D12_AUTO_BREADCRUMB_NODE1 {
++            BreadcrumbCount: 3,
++            ..Default::default()
++        };
++        assert!(!describe_unfinished(&no_history, &mut out));
++    }
++
++    #[test]
++    fn names_page_fault_allocations() {
++        let name = wide_str("vertex buffer");
++        let second = D3D12_DRED_ALLOCATION_NODE1::default();
++        let first = D3D12_DRED_ALLOCATION_NODE1 {
++            ObjectNameW: PCWSTR(name.as_ptr()),
++            pNext: &second,
++            ..Default::default()
++        };
++        assert_eq!(allocation_names(&first), ["\"vertex buffer\""]);
++        assert_eq!(op_name(D3D12_AUTO_BREADCRUMB_OP(999)), "operation 999");
++    }
++}
+diff --git a/src/lib.rs b/src/lib.rs
+index 067d348..56e6483 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -38,6 +38,8 @@ use crate::conv::map_primitive_state;
+ pub mod conv;
+ pub mod futures;
+ pub mod logging;
++#[cfg(windows)]
++mod dred;
+ mod proc_table {
+     use crate::logging::*;
+     use crate::*;
+@@ -3867,7 +3869,12 @@ fn removal_reason(context: &Context, device_id: id::DeviceId) -> Option<RemovalR
+             0x887A0020 => "DXGI_ERROR_DRIVER_INTERNAL_ERROR",
+             _ => "unknown reason",
+         };
+-        Some(format!("Direct3D 12 removed the device ({name}): {error}"))
++        let mut reason = format!("Direct3D 12 removed the device ({name}): {error}");
++        if let Some(dred) = dred::report(&raw.0) {
++            reason.push(' ');
++            reason.push_str(&dred);
++        }
++        Some(reason)
+     }))
+ }
+ 
+-- 
+2.55.0.windows.3
+
