@@ -1,10 +1,14 @@
 name: CI
 
+# Branch pushes are covered by their pull request; building them on push too would run everything twice.
+# Changes that only touch documentation don't run CI: nothing it builds or tests depends on them. A change
+# that also touches anything else runs everything, and workflow_dispatch runs it by hand.
 on:
-  # Branch pushes are covered by their pull request; building them on push too would run everything twice.
   push:
     branches: [master]
+    paths-ignore: ['**.md', LICENSE, assets/**]
   pull_request:
+    paths-ignore: ['**.md', LICENSE, assets/**]
   workflow_dispatch:
 
 jobs:
