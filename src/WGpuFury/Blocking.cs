@@ -17,9 +17,9 @@ public sealed class WGPUException(string operation, string status, string messag
 // Blocking wrappers over the callback-based entry points. Adapter and device requests use
 // WGPUCallbackMode.AllowProcessEvents and call wgpuInstanceProcessEvents until the callback has run (they
 // complete immediately in wgpu-native). Buffer maps use AllowSpontaneous, so the callback fires inside
-// wgpuDevicePoll, which blocks until the GPU work the map waits on is done; this needs only the device, not
-// the instance. The callbacks are static [UnmanagedCallersOnly] methods writing into a stack-allocated result:
-// no delegates, no GC handles.
+// wgpuDevicePoll, which blocks until the GPU work the map waits on is done (if it reports the device lost,
+// the map is aborted); this needs only the device, not the instance. The callbacks are static
+// [UnmanagedCallersOnly] methods writing into a stack-allocated result: no delegates, no GC handles.
 
 public unsafe partial struct WGPUInstance
 {
@@ -163,7 +163,11 @@ public unsafe partial struct WGPUBuffer
         WGPU.wgpuBufferMapAsync(this, mode, offset, size, callbackInfo);
         while (Volatile.Read(ref result.Done) == 0)
         {
-            WGPU.wgpuDevicePoll(device, true, null, 0);
+            if (WGPU.wgpuDevicePoll(device, true, null, 0) == WGPUNativePollStatus.Error && Volatile.Read(ref result.Done) == 0)
+            {
+                // The device is lost, so the map would never complete. Unmapping aborts it, which runs the callback.
+                WGPU.wgpuBufferUnmap(this);
+            }
         }
 
         if (result.Status != WGPUMapAsyncStatus.Success)

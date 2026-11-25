@@ -10,6 +10,12 @@ distributed under the same terms.
 Licensed under either of Apache License 2.0 or MIT, at your option.
 The binaries statically include wgpu, naga and other Rust crates under their respective (MIT / Apache-2.0 compatible) licenses.
 
+## wgpu
+
+https://github.com/gfx-rs/wgpu (`wgpu-core`, `wgpu-hal`, `wgpu-types`, `naga`, built into the `wgpu_native` binaries),
+at the `wgpu-v30.0.2` tag pinned in `eng/native.lock.json` with the patches in `eng/patches/wgpu`, which are
+distributed under the same terms. Licensed under either of Apache License 2.0 or MIT, at your option.
+
 ## webgpu-headers
 
 https://github.com/webgpu-native/webgpu-headers (`webgpu.h`, `webgpu.yml`).
