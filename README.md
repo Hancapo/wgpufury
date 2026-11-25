@@ -311,5 +311,7 @@ Native AOT on Windows needs the MSVC build tools ("Desktop development with C++"
 
 ## License
 
-The generated code is derived from `webgpu.h` (BSD-3-Clause) and `wgpu.h` (MIT / Apache-2.0); see
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). A license for WGpuFury itself has not been chosen yet.
+WGpuFury is licensed under the [MIT License](LICENSE).
+
+The generated code is derived from `webgpu.h` (BSD-3-Clause) and `wgpu.h` (MIT / Apache-2.0), and the package
+ships wgpu-native and wgpu binaries (MIT / Apache-2.0); see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
