@@ -1,0 +1,52 @@
+From f90da30d4c5fa6bce3925a957a115555e712584e Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 17:39:06 -0300
+Subject: [PATCH] Send panic messages to the log callback before the process
+ aborts
+
+A panic in wgpu-native (a null handle, an invalid enum value) can't unwind
+into the caller, so the process aborts, and Rust reports why only on
+stderr: an application with a log callback, a GUI one especially, just
+disappeared. Once a log callback is set, a panic hook first logs the panic
+message and location at error level, then runs Rust's default report.
+---
+ src/logging.rs | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/logging.rs b/src/logging.rs
+index f396750..43fa7d4 100644
+--- a/src/logging.rs
++++ b/src/logging.rs
+@@ -75,6 +75,9 @@ pub extern "C" fn wgpuSetLogCallback(
+     callback: native::WGPULogCallback,
+     userdata: *mut std::os::raw::c_void,
+ ) {
++    if callback.is_some() {
++        install_panic_hook();
++    }
+     let mut logger = LOGGER_INFO.write();
+     logger.callback = callback;
+     logger.userdata = userdata;
+@@ -87,6 +90,19 @@ pub extern "C" fn wgpuSetLogCallback(
+     }
+ }
+ 
++/// A panic in wgpu-native can't unwind into the caller, so the process aborts, and Rust's report of
++/// it only goes to stderr. This also sends it to the log callback first.
++fn install_panic_hook() {
++    static INSTALL: std::sync::Once = std::sync::Once::new();
++    INSTALL.call_once(|| {
++        let report_to_stderr = std::panic::take_hook();
++        std::panic::set_hook(Box::new(move |info| {
++            log::error!("wgpu-native {info}\nThe process will abort.");
++            report_to_stderr(info);
++        }));
++    });
++}
++
+ #[no_mangle]
+ pub extern "C" fn wgpuSetLogLevel(level: native::WGPULogLevel) {
+     log::set_max_level(map_log_level(level));
+-- 
+2.55.0.windows.3
+
