@@ -19,7 +19,7 @@ link wgpu-native statically into a single-file Native AOT executable.
 
 | | |
 |---|---|
-| wgpu | **30.0.2** (`wgpu-core`, `wgpu-hal`, `naga` at the `wgpu-v30.0.2` tag, plus two patches) |
+| wgpu | **30.0.2** (`wgpu-core`, `wgpu-hal`, `naga` at the `wgpu-v30.0.2` tag, plus three patches) |
 | Native library | wgpu-native built from source: the wgpu 30 port plus eight patches (below); reports version `30.0.2.0` |
 | Target | `net10.0`; Native AOT, trimming |
 | Platforms | win-x64, win-arm64, win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64, all built by [CI](.github/workflows/ci.yml). CI also runs the tests on win-x64, win-x86 (a 32-bit process), win-arm64, linux-x64 and osx-arm64. |
@@ -56,7 +56,7 @@ commit from source, with the patches in [`eng/patches`](eng/patches) on top:
    Direct3D 12 DRED, and the device-lost message then says what the GPU was doing
    ([details](#what-the-gpu-was-doing-dred)).
 
-wgpu itself gets two patches:
+wgpu itself gets three patches:
 
 - [`wgpu/0001-dx12-report-removed-devices.patch`](eng/patches/wgpu/0001-dx12-report-removed-devices.patch):
   on Direct3D 12, a removed device (driver crash, TDR, GPU reset) looked like an idle queue, so wgpu never
@@ -65,6 +65,11 @@ wgpu itself gets two patches:
   in a 32-bit process, every Direct3D 12 render pipeline failed with `E_INVALIDARG`. wgpu padded the pipeline
   state stream's subobjects to 8 bytes, but Direct3D 12 lays them out on pointer-size boundaries
   (`alignas(void*)` in `d3dx12.h`), which is 4 bytes there. Upstream wgpu still has this bug.
+- [`wgpu/0003-dont-panic-when-pending-writes-cannot-start.patch`](eng/patches/wgpu/0003-dont-panic-when-pending-writes-cannot-start.patch):
+  wgpu-core starts an internal command list for queue writes and surface-texture clears with an `unwrap()`.
+  On a device the GPU had removed but wgpu hadn't noticed yet, that panicked and aborted the process, for
+  example in `Present` or in a render loop's `WriteBuffer`. The error now loses the device and fires the
+  device-lost callback instead.
 
 The commits, the patch lists and the version string are pinned in [`eng/native.lock.json`](eng/native.lock.json).
 [`eng/build-native.cs`](eng/build-native.cs) checks wgpu-native out into `native/src` and wgpu into
@@ -140,6 +145,10 @@ Everything else in the API is generated. These were written by hand:
   the message of a panic just before it aborts the process.
 - `WGPU.NativeVersion` is the version reported by the loaded library; `WGPU.BindingsVersion` the one the
   bindings were generated for.
+- `instance.GetLiveObjects()` is wgpu's own count of the objects created from an instance and not yet
+  released, e.g. "2 buffers, 1 texture views". Handles are value types with no finalizer, so a missed
+  `Dispose` leaks silently; release everything but the instance, then expect `Total == 0`. The test suite
+  does this when each test class finishes.
 
 ### Futures and callbacks
 
@@ -263,9 +272,14 @@ waits for the GPU to finish, so there the report only says that every recorded c
 
 `tests/WGpuFury.Tests/RobustnessTests.cs` checks this end to end. It removes the real Direct3D 12 device under
 wgpu with `ID3D12Device5::RemoveDevice` (in a child process, since that kills every device in the process),
-then expects the lost callback, a logged `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) and no abort. It also
-misuses surfaces: acquiring before configuring, a zero-sized configuration, and a second swap chain on the same
-window, which wgpu rejects with a validation error ("Invalid surface") without harming the first one.
+then expects the lost callback, a logged `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) and no abort. Two variants
+cover how an application first runs into the removal: a `WriteBuffer` right after it, and a loop that only
+acquires and presents, where `Present` is what notices it. It also misuses surfaces: acquiring before
+configuring, a zero-sized configuration, and a second swap chain on the same window, which wgpu rejects with a
+validation error ("Invalid surface") without harming the first one.
+
+Vulkan has no equivalent of `RemoveDevice`, so device loss there is checked only by reading the code: wgpu maps
+`VK_ERROR_DEVICE_LOST` to the same lost-device error, which goes through the same device-lost hook.
 
 ## Native AOT and linking
 
