@@ -113,6 +113,96 @@ public sealed unsafe class RobustnessTests
         StringAssert.Contains(text, "The process will abort.");
     }
 
+    /// <summary>
+    /// The removal test notices the loss through a poll. A render loop may notice it in <c>Present</c> first, which
+    /// must fire the lost callback just the same. Here nothing but acquire and present runs after the removal.
+    /// </summary>
+    [TestMethod]
+    public void RemovalNoticedByPresentFiresTheLostCallback()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Inconclusive("Uses a Win32 window and Direct3D 12.");
+        }
+
+        if (ChildReport() is { } reportFile)
+        {
+            var lines = new List<string>();
+            try
+            {
+                RemoveTheDeviceThenPresent(lines);
+            }
+            finally
+            {
+                File.WriteAllLines(reportFile, lines);
+            }
+
+            return;
+        }
+
+        (int exitCode, string[] report, string output) = RunInChildProcess(nameof(RemovalNoticedByPresentFiresTheLostCallback));
+        Assert.AreEqual(0, exitCode, $"The child process failed:\n{string.Join('\n', report)}\n{output}");
+        if (report.FirstOrDefault() is { } first && first.StartsWith("skip: ", StringComparison.Ordinal))
+        {
+            Assert.Inconclusive(first);
+        }
+    }
+
+    private static void RemoveTheDeviceThenPresent(List<string> report)
+    {
+        using WGPUInstance instance = CreateD3D12Instance();
+        if (!TryRequestAdapter(instance, out WGPUAdapter adapter, out string? why))
+        {
+            report.Add("skip: " + why);
+            return;
+        }
+
+        using (adapter)
+        using (var window = new HiddenWindow())
+        {
+            var info = new WGPUAdapterInfo();
+            adapter.GetInfo(&info);
+            (uint vendorId, uint deviceId) = (info.VendorID, info.DeviceID);
+            info.FreeMembers();
+
+            WGPUDevice device = RequestDevice(instance, adapter);
+            WGPUSurface surface = CreateSurface(instance, window);
+            var capabilities = new WGPUSurfaceCapabilities();
+            Assert.AreEqual(WGPUStatus.Success, surface.GetCapabilities(adapter, &capabilities));
+            WGPUTextureFormat format = capabilities.Formats[0];
+            capabilities.FreeMembers();
+            surface.Configure(new WGPUSurfaceConfiguration { Device = device, Format = format, Width = 320, Height = 240 });
+            Present(surface);
+
+            Assert.AreNotEqual(0, D3D12.RemoveDevices(vendorId, deviceId), "found no Direct3D 12 device for the adapter");
+
+            var steps = new List<string>();
+            for (int i = 0; i < 20 && !s_lost.IsSet; i++)
+            {
+                var texture = new WGPUSurfaceTexture();
+                surface.GetCurrentTexture(&texture);
+                steps.Add($"acquire {texture.Status}");
+                if (!texture.Texture.IsNull)
+                {
+                    steps.Add($"present {surface.Present()}");
+                    texture.Texture.Dispose();
+                }
+
+                s_lost.Wait(50);
+            }
+
+            report.Add("after the removal: " + string.Join(", ", steps));
+            Assert.IsTrue(s_lost.Wait(TimeSpan.FromSeconds(5)), "presenting never fired the lost callback");
+            report.Add($"lost callback: {s_lostReason}: {s_lostMessage}");
+            Assert.AreEqual(WGPUDeviceLostReason.Unknown, s_lostReason);
+            StringAssert.Contains(s_lostMessage, "DXGI_ERROR_DEVICE_REMOVED");
+
+            surface.Unconfigure();
+            surface.Dispose();
+            device.Dispose();
+        }
+    }
+
     /// <summary>The report file to write, when this process is a child started by <see cref="RunInChildProcess"/>.</summary>
     private static string? ChildReport() => Environment.GetEnvironmentVariable(ChildReportVariable);
 
@@ -195,6 +285,10 @@ public sealed unsafe class RobustnessTests
 
             int removed = D3D12.RemoveDevices(vendorId, deviceId);
             Assert.AreNotEqual(0, removed, "found no Direct3D 12 device for the adapter");
+
+            // What a render loop does first after a removal it hasn't noticed yet: update a buffer. wgpu-core
+            // panicked starting its internal command list on a removed device (eng/patches/wgpu/0003).
+            queue.WriteBuffer(readback, 0, new uint[] { 1, 2, 3, 4 }.AsSpan());
 
             // wgpu notices on its next call into Direct3D 12 that reports the removal (signaling a fence).
             var polls = new List<WGPUNativePollStatus>();
