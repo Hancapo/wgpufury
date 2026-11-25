@@ -42,7 +42,11 @@ public sealed unsafe class GpuTests
         s_queue.Dispose();
         s_device.Dispose();
         s_adapter.Dispose();
+
+        // Every test released what it created, so nothing but the instance may be left.
+        WGPULiveObjects leaked = s_instance.GetLiveObjects();
         s_instance.Dispose();
+        Assert.AreEqual(0, leaked.Total, $"the tests leaked wgpu objects: {leaked}");
     }
 
     [TestInitialize]
