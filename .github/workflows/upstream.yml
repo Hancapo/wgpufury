@@ -88,5 +88,5 @@ jobs:
       - name: Ask for an update
         if: ${{ !cancelled() && steps.upstream.outputs.moved == 'true' }}
         run: |
-          echo "::error::wgpu-native or wgpu moved past eng/native.lock.json. The job summary lists which patches still apply; see \"Updating wgpu-native\" in the README."
+          echo "::error::wgpu-native or wgpu moved past eng/native.lock.json. The job summary lists which patches still apply; see \"Updating to a new wgpu or wgpu-native\" in docs/MAINTAINING.md."
           exit 1
