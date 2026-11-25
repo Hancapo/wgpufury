@@ -295,6 +295,123 @@ public sealed unsafe class RobustnessTests
         Assert.AreEqual(0, s_uncapturedErrors);
     }
 
+    // ---------------------------------------------------------------- 32-bit and alignment
+
+    /// <summary>
+    /// .NET on 32-bit Windows puts structs with 64-bit fields on 4-byte boundaries, and wgpu-native aborted on a
+    /// chained struct that isn't aligned for its type. Placing one off its alignment on purpose tests that on
+    /// every architecture.
+    /// </summary>
+    [TestMethod]
+    public void MisalignedChainedStructsAreAccepted()
+    {
+        byte* block = (byte*)NativeMemory.AlignedAlloc((nuint)(sizeof(WGPUInstanceExtras) + 8), 8);
+        try
+        {
+            var extras = (WGPUInstanceExtras*)(block + 4);
+            *extras = new WGPUInstanceExtras
+            {
+                Chain = new WGPUChainedStruct { SType = WGPUSType.InstanceExtras },
+                Backends = WGPUInstanceBackend.All,
+            };
+            Assert.AreNotEqual(0, (nint)extras % 8, "the struct must be misaligned for this test");
+
+            using WGPUInstance instance = WGPU.wgpuCreateInstance(new WGPUInstanceDescriptor { NextInChain = &extras->Chain });
+            Assert.IsFalse(instance.IsNull);
+        }
+        finally
+        {
+            NativeMemory.AlignedFree(block);
+        }
+    }
+
+    /// <summary>
+    /// wgpu padded Direct3D 12 pipeline state streams to 8 bytes instead of pointer size, so in a 32-bit process
+    /// every render pipeline failed with E_INVALIDARG. The other GPU tests use the default backend, which can be
+    /// Vulkan; this one always uses Direct3D 12.
+    /// </summary>
+    [TestMethod]
+    public void D3D12RenderPipelinesCanBeCreated()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Inconclusive("Direct3D 12 only.");
+        }
+
+        using WGPUInstance instance = CreateD3D12Instance();
+        if (!TryRequestAdapter(instance, out WGPUAdapter adapter, out string? why))
+        {
+            Assert.Inconclusive(why!);
+        }
+
+        using (adapter)
+        {
+            using WGPUDevice device = RequestDevice(instance, adapter);
+            ReadOnlySpan<byte> shader = """
+                @vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
+                    return vec4<f32>(f32(i) - 1.0, 0.0, 0.0, 1.0);
+                }
+                @fragment fn fs() -> @location(0) vec4<f32> { return vec4<f32>(1.0, 0.0, 0.0, 1.0); }
+                """u8;
+            var wgsl = new WGPUShaderSourceWGSL { Code = WGPUStringView.FromPinned(shader) };
+            using WGPUShaderModule module = device.CreateShaderModule(new WGPUShaderModuleDescriptor { NextInChain = &wgsl.Chain });
+            var colorTarget = new WGPUColorTargetState { Format = WGPUTextureFormat.RGBA8Unorm };
+            var fragment = new WGPUFragmentState { Module = module, EntryPoint = WGPUStringView.FromPinned("fs"u8), TargetCount = 1, Targets = &colorTarget };
+
+            device.PushErrorScope(WGPUErrorFilter.Internal);
+            device.PushErrorScope(WGPUErrorFilter.Validation);
+            using WGPURenderPipeline pipeline = device.CreateRenderPipeline(new WGPURenderPipelineDescriptor
+            {
+                Vertex = new WGPUVertexState { Module = module, EntryPoint = WGPUStringView.FromPinned("vs"u8) },
+                Fragment = &fragment,
+            });
+            (WGPUErrorType validation, string validationMessage) = PopErrorScope(device);
+            (WGPUErrorType internalError, string internalMessage) = PopErrorScope(device);
+            Assert.AreEqual(WGPUErrorType.NoError, validation, validationMessage);
+            Assert.AreEqual(WGPUErrorType.NoError, internalError, internalMessage);
+        }
+
+        Assert.AreEqual(0, s_uncapturedErrors);
+    }
+
+    /// <summary>Without a lost callback, releasing a device used to log a "device lost" warning.</summary>
+    [TestMethod]
+    public void ReleasingADeviceLogsNoLossWarning()
+    {
+        var log = new List<string>();
+        WGPU.SetLogger(WGPULogLevel.Warn, (level, message) =>
+        {
+            lock (log)
+            {
+                log.Add($"{level}: {message}");
+            }
+        });
+        try
+        {
+            using WGPUInstance instance = WGPU.wgpuCreateInstance(null);
+            if (!TryRequestAdapter(instance, out WGPUAdapter adapter, out string? why))
+            {
+                Assert.Inconclusive(why!);
+            }
+
+            using (adapter)
+            {
+                WGPUDevice device = adapter.RequestDeviceSync(instance);
+                device.Destroy();
+                device.Dispose();
+            }
+        }
+        finally
+        {
+            WGPU.SetLogger(WGPULogLevel.Off, null);
+        }
+
+        lock (log)
+        {
+            Assert.IsFalse(log.Any(l => l.Contains("device lost", StringComparison.OrdinalIgnoreCase)), string.Join('\n', log));
+        }
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static WGPUInstance CreateD3D12Instance()
