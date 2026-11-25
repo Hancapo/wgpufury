@@ -1,5 +1,6 @@
 // Builds wgpu-native from source into ./native/<rid>/ (include/webgpu/*.h and lib/*), as pinned
-// by eng/native.lock.json: a wgpu-native commit plus the patches in eng/patches.
+// by eng/native.lock.json: a wgpu-native commit plus the patches in eng/patches, built against a
+// wgpu commit plus the patches in eng/patches/wgpu. The sources go to native/src and native/wgpu.
 //
 //   dotnet run eng/build-native.cs                       # the RID of this machine
 //   dotnet run eng/build-native.cs -- win-x64 win-arm64  # cross-compile (needs the MSVC/SDK bits)
@@ -16,6 +17,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 string repoRoot = FindRepoRoot();
 JsonObject lockFile = JsonNode.Parse(File.ReadAllText(Path.Combine(repoRoot, "eng", "native.lock.json")))!.AsObject();
@@ -24,6 +26,9 @@ string repository = (string)lockFile["source"]!["repository"]!;
 string commit = (string)lockFile["source"]!["commit"]!;
 string[] patches = lockFile["patches"]!.AsArray().Select(p => Path.Combine(repoRoot, "eng", "patches", (string)p!)).ToArray();
 JsonObject targets = lockFile["targets"]!.AsObject();
+string wgpuRepository = (string)lockFile["wgpuSource"]!["repository"]!;
+string wgpuCommit = (string)lockFile["wgpuSource"]!["commit"]!;
+string[] wgpuPatches = lockFile["wgpuSource"]!["patches"]!.AsArray().Select(p => Path.Combine(repoRoot, "eng", "patches", (string)p!)).ToArray();
 
 bool prepareOnly = args.Contains("--prepare");
 bool collectOnly = args.Contains("--collect");
@@ -46,6 +51,7 @@ foreach (string rid in rids)
 // The stamp identifies the exact sources: commit + patch contents + version string.
 string stamp = ComputeStamp();
 string src = Path.Combine(repoRoot, "native", "src");
+string wgpuSrc = Path.Combine(repoRoot, "native", "wgpu");
 
 if (!collectOnly)
 {
@@ -111,26 +117,85 @@ void Prepare()
         return;
     }
 
-    if (!Directory.Exists(Path.Combine(src, ".git")))
-    {
-        Directory.CreateDirectory(src);
-        Run(src, "git", "init", "--quiet");
-        Run(src, "git", "config", "core.autocrlf", "false");
-        Run(src, "git", "remote", "add", "origin", repository);
-    }
-
-    Console.WriteLine($"source: {repository} @ {commit[..12]} + {patches.Length} patches");
-    if (!RunOk(src, "git", "cat-file", "-e", commit + "^{commit}"))
-    {
-        Run(src, "git", "fetch", "--quiet", "--depth", "1", "origin", commit);
-    }
-
-    // Reset to the pinned commit (keeping cargo's target/ cache) and apply the patches on top.
-    Run(src, "git", "checkout", "--quiet", "--force", "--detach", commit);
-    Run(src, "git", "clean", "--quiet", "-fdx", "--exclude", "target");
-    Run(src, "git", "submodule", "update", "--quiet", "--init", "--depth", "1", "ffi/webgpu-headers");
-    Run(src, "git", ["-c", "user.name=WGpuFury", "-c", "user.email=wgpufury@users.noreply.github.com", "am", "--quiet", "--keep-cr", .. patches]);
+    Console.WriteLine($"wgpu-native: {repository} @ {commit[..12]} + {patches.Length} patches");
+    Checkout(src, repository, commit, patches, submodule: "ffi/webgpu-headers");
+    Console.WriteLine($"wgpu: {wgpuRepository} @ {wgpuCommit[..12]} + {wgpuPatches.Length} patches");
+    Checkout(wgpuSrc, wgpuRepository, wgpuCommit, wgpuPatches, submodule: null);
+    UsePatchedWgpu();
     File.WriteAllText(stampFile, stamp);
+}
+
+// Resets `dir` to the pinned commit (keeping cargo's target/ cache) and applies the patches on top.
+void Checkout(string dir, string repo, string pinned, string[] patchFiles, string? submodule)
+{
+    if (!Directory.Exists(Path.Combine(dir, ".git")))
+    {
+        Directory.CreateDirectory(dir);
+        Run(dir, "git", "init", "--quiet");
+        Run(dir, "git", "config", "core.autocrlf", "false");
+        Run(dir, "git", "remote", "add", "origin", repo);
+    }
+    else
+    {
+        Run(dir, "git", "remote", "set-url", "origin", repo);
+    }
+
+    if (!RunOk(dir, "git", "cat-file", "-e", pinned + "^{commit}"))
+    {
+        Run(dir, "git", "fetch", "--quiet", "--depth", "1", "origin", pinned);
+    }
+
+    Run(dir, "git", "checkout", "--quiet", "--force", "--detach", pinned);
+    Run(dir, "git", "clean", "--quiet", "-fdx", "--exclude", "target");
+    if (submodule != null)
+    {
+        Run(dir, "git", "submodule", "update", "--quiet", "--init", "--depth", "1", submodule);
+    }
+
+    if (patchFiles.Length > 0)
+    {
+        Run(dir, "git", ["-c", "user.name=WGpuFury", "-c", "user.email=wgpufury@users.noreply.github.com", "am", "--quiet", "--keep-cr", .. patchFiles]);
+    }
+}
+
+// Points every wgpu crate in wgpu-native's Cargo.lock at the patched checkout in native/wgpu, with a
+// Cargo [patch]. All of them, not only the patched ones, so that no crate is built from two sources.
+void UsePatchedWgpu()
+{
+    string lockText = File.ReadAllText(Path.Combine(src, "Cargo.lock"));
+    var fromWgpu = new Regex(@"name = ""([^""]+)""\r?\nversion = ""[^""]+""\r?\nsource = ""git\+" + Regex.Escape(wgpuRepository) + "[?#]");
+    string[] used = fromWgpu.Matches(lockText).Select(m => m.Groups[1].Value).Distinct().Order(StringComparer.Ordinal).ToArray();
+    if (used.Length == 0)
+    {
+        throw new InvalidOperationException($"wgpu-native's Cargo.lock has no crates from {wgpuRepository}.");
+    }
+
+    var packageName = new Regex(@"^\[package\][^\[]*?^name\s*=\s*""([^""]+)""", RegexOptions.Multiline);
+    var crateDirs = new Dictionary<string, string>();
+    foreach (string manifest in Directory.EnumerateFiles(wgpuSrc, "Cargo.toml", SearchOption.AllDirectories))
+    {
+        string relative = Path.GetRelativePath(wgpuSrc, manifest).Replace('\\', '/');
+        if (!relative.StartsWith(".git/", StringComparison.Ordinal) && !relative.StartsWith("target/", StringComparison.Ordinal)
+            && packageName.Match(File.ReadAllText(manifest)) is { Success: true } name)
+        {
+            crateDirs.TryAdd(name.Groups[1].Value, Path.GetDirectoryName(relative)!.Replace('\\', '/'));
+        }
+    }
+
+    var section = new StringBuilder();
+    section.Append("\n# Added by eng/build-native.cs: build against the patched wgpu in native/wgpu.\n");
+    section.Append($"[patch.\"{wgpuRepository}\"]\n");
+    foreach (string crate in used)
+    {
+        if (!crateDirs.TryGetValue(crate, out string? dir))
+        {
+            throw new InvalidOperationException($"The wgpu checkout has no crate '{crate}'.");
+        }
+
+        section.Append($"{crate} = {{ path = \"../wgpu/{dir}\" }}\n");
+    }
+
+    File.AppendAllText(Path.Combine(src, "Cargo.toml"), section.ToString());
 }
 
 void Collect(string rid)
@@ -184,8 +249,8 @@ bool IsCurrent(string rid)
 string ComputeStamp()
 {
     using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-    sha.AppendData(Encoding.UTF8.GetBytes($"{version}\n{repository}\n{commit}\n"));
-    foreach (string patch in patches)
+    sha.AppendData(Encoding.UTF8.GetBytes($"{version}\n{repository}\n{commit}\n{wgpuRepository}\n{wgpuCommit}\n"));
+    foreach (string patch in patches.Concat(wgpuPatches))
     {
         // Line endings must not change the stamp (or the patch) across checkouts.
         sha.AppendData(Encoding.UTF8.GetBytes(File.ReadAllText(patch).ReplaceLineEndings("\n")));
