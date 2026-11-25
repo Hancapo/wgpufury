@@ -2392,6 +2392,19 @@ public enum WGPUInstanceFlag : ulong
     /// </summary>
     StrictWebgpuCompliance = 1 << 7,
     /// <summary>
+    /// Turn on Direct3D 12 Device Removed Extended Data (DRED): Direct3D records how far the GPU got
+    /// through each command list, with the debug groups and pass labels around it, and the address of
+    /// a GPU page fault. When a device is removed, the device-lost message then says which command
+    /// list stopped at which operation, inside which debug groups.
+    /// <para/>
+    /// It applies to every Direct3D 12 device created afterwards in the process, and costs some GPU
+    /// time, so it is meant for test builds. Ignored on other backends and platforms.
+    /// <para/>
+    /// When using <c>WGPUInstanceFlag_WithEnv</c>, it is also turned on when the
+    /// <c>WGPU_D3D12_DRED</c> environment variable is 1 or true.
+    /// </summary>
+    D3D12DRED = 1 << 16,
+    /// <summary>
     /// Use the default flags for the current build configuration.
     /// In debug builds, this typically enables <c>WGPUInstanceFlag_Debug</c> and
     /// <c>WGPUInstanceFlag_Validation</c>.
