@@ -1,0 +1,414 @@
+From b0ae2d771c900346a4c572c751a1108a4c03146c Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 16:01:43 -0300
+Subject: [PATCH] Report errors instead of aborting, and fire the lost callback
+ when wgpu loses the device
+
+wgpu-native panicked (aborting the process) whenever wgpu-core returned an
+error from surface creation, configuration, acquisition and unconfiguration,
+polling, device release, and render bundle encoding. Those errors now go to
+the device's error scopes / uncaptured-error callback, the call returns its
+error value (NULL surface, Error texture status, WGPUNativePollStatus_Error),
+or, where there is no device, they are logged.
+
+wgpu-native also never registered wgpu-core's device-lost closure, so a device
+that wgpu-core lost by itself (a removed or reset GPU, an unexpected backend
+error) only reported it if a later call happened to fail. The closure now
+completes the lost future. It runs under wgpu-core's locks, so spontaneous
+callbacks are fired from a new thread.
+---
+ ffi/wgpu.h     |   5 ++
+ src/futures.rs |  35 +++++++++++
+ src/lib.rs     | 162 ++++++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 165 insertions(+), 37 deletions(-)
+
+diff --git a/ffi/wgpu.h b/ffi/wgpu.h
+index 851e227..7ea1321 100644
+--- a/ffi/wgpu.h
++++ b/ffi/wgpu.h
+@@ -1622,6 +1622,11 @@ typedef enum WGPUNativePollStatus
+      * queue remain valid, and the caller may poll or wait again.
+      */
+     WGPUNativePollStatus_Timeout = 0x00000004,
++    /**
++     * The poll failed, e.g. because the device is lost. The error is also reported to the
++     * device (its error scopes or uncaptured-error callback, or its lost callback).
++     */
++    WGPUNativePollStatus_Error = 0x00000005,
+     WGPUNativePollStatus_Force32 = 0x7FFFFFFF
+ } WGPUNativePollStatus;
+ 
+diff --git a/src/futures.rs b/src/futures.rs
+index fb2343a..2d3aa32 100644
+--- a/src/futures.rs
++++ b/src/futures.rs
+@@ -120,6 +120,41 @@ impl Completer {
+     }
+ }
+ 
++impl Completer {
++    /// Like [`Completer::complete`], but the callback never runs on the calling thread: a
++    /// spontaneous callback runs on a new thread, the other modes only become ready. For
++    /// completions that happen inside wgpu-core or under one of our locks (the device-lost
++    /// closure runs while wgpu-core holds its own), where a callback calling back into wgpu
++    /// would deadlock.
++    pub(crate) fn complete_off_thread(mut self, fire: Fire) {
++        let id = mem_take_id(&mut self.id);
++        let mut registry = REGISTRY.lock();
++        let Some(entry) = registry.entries.get_mut(&id) else {
++            return;
++        };
++        match (&entry.state, entry.mode) {
++            (State::Cancelled, _) => {
++                registry.entries.remove(&id);
++                drop(registry);
++                drop(fire);
++            }
++            (_, Mode::AllowSpontaneous) => {
++                registry.entries.remove(&id);
++                drop(registry);
++                std::thread::Builder::new()
++                    .name("wgpu-native callback".into())
++                    .spawn(move || fire(false))
++                    .expect("spawn callback thread");
++            }
++            _ => {
++                entry.state = State::Ready(fire);
++                drop(registry);
++                COMPLETED.notify_all();
++            }
++        }
++    }
++}
++
+ fn mem_take_id(id: &mut u64) -> u64 {
+     std::mem::replace(id, 0)
+ }
+diff --git a/src/lib.rs b/src/lib.rs
+index cb83408..075e4ce 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -203,9 +203,15 @@ impl Drop for WGPUDeviceImpl {
+             let context = &self.context;
+ 
+             // pre v27 this would wait for 60 seconds instead of waiting indefinitely
+-            match context.device_poll(self.id, wgt::PollType::wait_indefinitely()) {
+-                Ok(_) => (),
+-                Err(err) => handle_error_fatal(err, "WGPUDeviceImpl::drop"),
++            // Waiting fails on a lost device, which is already reported.
++            let lost = self.error_sink.lock().device_lost.is_none();
++            if let Err(err) = context.device_poll(self.id, wgt::PollType::wait_indefinitely()) {
++                if !lost {
++                    log::warn!(
++                        "wgpuDeviceRelease: waiting for the GPU failed: {}",
++                        format_error(&err)
++                    );
++                }
+             }
+ 
+             context.device_drop(self.id);
+@@ -288,6 +294,7 @@ impl Drop for WGPURenderBundleImpl {
+ 
+ pub struct WGPURenderBundleEncoderImpl {
+     context: Arc<Context>,
++    error_sink: ErrorSink,
+     encoder: *mut Option<*mut wgc::command::RenderBundleEncoder>,
+ }
+ impl Drop for WGPURenderBundleEncoderImpl {
+@@ -475,7 +482,10 @@ impl Drop for WGPUTextureImpl {
+                     data.acquired_texture = None;
+                     match self.context.surface_texture_discard(surface.id) {
+                         Ok(()) | Err(wgc::present::SurfaceError::TextureDestroyed) => (),
+-                        Err(cause) => handle_error_fatal(cause, "wgpuTextureRelease"),
++                        Err(cause) => log::warn!(
++                            "wgpuTextureRelease: discarding the surface texture failed: {}",
++                            format_error(&cause)
++                        ),
+                     }
+                 }
+             }
+@@ -683,9 +693,14 @@ impl ErrorSinkRaw {
+         let (typ, filter) = match err {
+             crate::Error::DeviceLost { .. } => {
+                 // handle device lost error early
+-                let msg = err.to_string();
++                let msg = format_error(&err);
+                 let device = self.device.as_ptr();
+-                self.device_lost(device, native::WGPUDeviceLostReason_Unknown, &msg);
++                // The sink is locked here, so the callback must not run on this thread.
++                if let Some((completer, fire)) =
++                    self.take_device_lost(device, native::WGPUDeviceLostReason_Unknown, &msg)
++                {
++                    completer.complete_off_thread(fire);
++                }
+                 return;
+             }
+             crate::Error::OutOfMemory { .. } => (
+@@ -761,13 +776,6 @@ fn format_error(err: &(impl error::Error + 'static)) -> String {
+     format!("Validation Error\n\nCaused by:\n{}", output)
+ }
+ 
+-fn handle_error_fatal(
+-    cause: impl error::Error + Send + Sync + 'static,
+-    operation: &'static str,
+-) -> ! {
+-    panic!("Error in {operation}: {f}", f = format_error(&cause));
+-}
+-
+ fn handle_error(
+     sink_mutex: &Mutex<ErrorSinkRaw>,
+     source: impl wgt::error::WebGpuError + Send + Sync + 'static,
+@@ -1247,6 +1255,37 @@ pub unsafe extern "C" fn wgpuAdapterRequestDevice(
+                     lost_future,
+                 }
+             });
++
++            // wgpu-core calls this when it loses the device itself: a removed or reset GPU, an
++            // unexpected backend error or running out of memory (Unknown), or the end of a
++            // `destroy` (Destroyed). It runs while wgpu-core holds its locks, so the callback
++            // is completed off this thread.
++            let lost_sink = Arc::downgrade(&device_impl.error_sink);
++            context.device_set_device_lost_closure(
++                device_id,
++                Box::new(move |reason, message| {
++                    let Some(sink) = lost_sink.upgrade() else {
++                        return;
++                    };
++                    let reason = match reason {
++                        wgt::DeviceLostReason::Destroyed => native::WGPUDeviceLostReason_Destroyed,
++                        wgt::DeviceLostReason::Unknown => native::WGPUDeviceLostReason_Unknown,
++                    };
++                    let message = if message.is_empty() {
++                        "The device was lost".to_string()
++                    } else {
++                        message
++                    };
++                    let lost = {
++                        let mut sink = sink.lock();
++                        let device = sink.device.as_ptr();
++                        sink.take_device_lost(device, reason, &message)
++                    };
++                    if let Some((completer, fire)) = lost {
++                        completer.complete_off_thread(fire);
++                    }
++                }),
++            );
+             let device = SendPtr(Arc::into_raw(device_impl));
+ 
+             request.complete(Box::new(move |cancelled| {
+@@ -2767,9 +2806,9 @@ pub unsafe extern "C-unwind" fn wgpuDeviceCreateRenderBundleEncoder(
+     device: native::WGPUDevice,
+     descriptor: Option<&native::WGPURenderBundleEncoderDescriptor>,
+ ) -> native::WGPURenderBundleEncoder {
+-    let (device_id, context) = {
++    let (device_id, context, error_sink) = {
+         let device = device.as_ref().expect("invalid device");
+-        (device.id, &device.context)
++        (device.id, &device.context, &device.error_sink)
+     };
+     let descriptor = descriptor.expect("invalid descriptor");
+ 
+@@ -2806,10 +2845,16 @@ pub unsafe extern "C-unwind" fn wgpuDeviceCreateRenderBundleEncoder(
+ 
+     let (encoder, error) = context.device_create_render_bundle_encoder(device_id, &desc);
+     if let Some(cause) = error {
+-        handle_error_fatal(cause, "wgpuDeviceCreateRenderBundleEncoder");
++        handle_error(
++            error_sink,
++            cause,
++            desc.label,
++            "wgpuDeviceCreateRenderBundleEncoder",
++        );
+     }
+     Arc::into_raw(Arc::new(WGPURenderBundleEncoderImpl {
+         context: context.clone(),
++        error_sink: error_sink.clone(),
+         encoder: Box::into_raw(Box::new(Some(Box::into_raw(encoder)))),
+     }))
+ }
+@@ -3787,6 +3832,12 @@ pub unsafe extern "C-unwind" fn wgpuDeviceRelease(device: native::WGPUDevice) {
+ 
+ // Instance methods
+ 
++/// `wgpuInstanceCreateSurface` has no device to report to, so a failure is logged and returns NULL.
++fn surface_creation_failed(cause: impl error::Error + 'static) -> native::WGPUSurface {
++    log::error!("wgpuInstanceCreateSurface: {}", format_error(&cause));
++    std::ptr::null()
++}
++
+ #[no_mangle]
+ pub unsafe extern "C-unwind" fn wgpuInstanceCreateSurface(
+     instance: native::WGPUInstance,
+@@ -3813,21 +3864,21 @@ pub unsafe extern "C-unwind" fn wgpuInstanceCreateSurface(
+         CreateSurfaceParams::Raw((rdh, rwh)) => {
+             match context.instance_create_surface(Some(rdh), rwh, None) {
+                 Ok(surface_id) => surface_id,
+-                Err(cause) => handle_error_fatal(cause, "wgpuInstanceCreateSurface"),
++                Err(cause) => return surface_creation_failed(cause),
+             }
+         }
+         #[cfg(all(any(target_os = "ios", target_os = "macos"), feature = "metal"))]
+         CreateSurfaceParams::Metal(layer) => {
+             match context.instance_create_surface_metal(layer, None) {
+                 Ok(surface_id) => surface_id,
+-                Err(cause) => handle_error_fatal(cause, "wgpuInstanceCreateSurface"),
++                Err(cause) => return surface_creation_failed(cause),
+             }
+         }
+         #[cfg(all(target_os = "windows", feature = "dx12"))]
+         CreateSurfaceParams::SwapChainPanel(panel) => {
+             match context.instance_create_surface_from_swap_chain_panel(panel, None) {
+                 Ok(surface_id) => surface_id,
+-                Err(cause) => handle_error_fatal(cause, "wgpuInstanceCreateSurface"),
++                Err(cause) => return surface_creation_failed(cause),
+             }
+         }
+     };
+@@ -3844,11 +3895,8 @@ pub unsafe extern "C-unwind" fn wgpuInstanceProcessEvents(instance: native::WGPU
+     let instance = instance.as_ref().expect("invalid instance");
+     let context = &instance.context;
+ 
+-    match context.poll_all_devices(false) {
+-        Ok(_queue_empty) => (),
+-        Err(cause) => {
+-            handle_error_fatal(cause, "wgpuInstanceProcessEvents");
+-        }
++    if let Err(cause) = context.poll_all_devices(false) {
++        log::warn!("wgpuInstanceProcessEvents: {}", format_error(&cause));
+     }
+ 
+     futures::process_events(context);
+@@ -4067,7 +4115,10 @@ pub unsafe extern "C-unwind" fn wgpuInstancePollAllDevices(
+     let context = &instance.as_ref().expect("invalid instance").context;
+     match context.poll_all_devices(wait != 0) {
+         Ok(all_empty) => all_empty as native::WGPUBool,
+-        Err(cause) => handle_error_fatal(cause, "wgpuInstancePollAllDevices"),
++        Err(cause) => {
++            log::warn!("wgpuInstancePollAllDevices: {}", format_error(&cause));
++            false as native::WGPUBool
++        }
+     }
+ }
+ 
+@@ -4448,7 +4499,12 @@ pub unsafe extern "C-unwind" fn wgpuRenderBundleEncoderFinish(
+     // still dropped at end of scope, freeing the reclaimed raw pointer.
+     let (render_bundle_id, error) = context.render_bundle_encoder_finish(&mut encoder, &desc, None);
+     if let Some(cause) = error {
+-        handle_error_fatal(cause, "wgpuRenderBundleEncoderFinish");
++        handle_error(
++            &bundle.error_sink,
++            cause,
++            desc.label,
++            "wgpuRenderBundleEncoderFinish",
++        );
+     }
+ 
+     Arc::into_raw(Arc::new(WGPURenderBundleImpl {
+@@ -5282,7 +5338,8 @@ pub unsafe extern "C-unwind" fn wgpuSurfaceConfigure(
+ 
+     let mut surface_data_guard = surface.data.lock();
+     match context.surface_configure(surface.id, device.id, &surface_config) {
+-        Some(cause) => handle_error_fatal(cause, "wgpuSurfaceConfigure"),
++        // Reported to the device; the surface keeps whatever configuration wgpu-core kept.
++        Some(cause) => handle_error(&device.error_sink, cause, None, "wgpuSurfaceConfigure"),
+         None => {
+             *surface_data_guard = Some(SurfaceData {
+                 error_sink: device.error_sink.clone(),
+@@ -5430,10 +5487,16 @@ pub unsafe extern "C-unwind" fn wgpuSurfaceGetCurrentTexture(
+     let mut surface_data_guard = surface.data.lock();
+     let surface_data = match surface_data_guard.as_mut() {
+         Some(surface_data) => surface_data,
+-        None => handle_error_fatal(
+-            wgc::present::SurfaceError::NotConfigured,
+-            "wgpuSurfaceGetCurrentTexture",
+-        ),
++        None => {
++            // No device to report to before the surface is configured.
++            log::error!(
++                "wgpuSurfaceGetCurrentTexture: {}",
++                wgc::present::SurfaceError::NotConfigured
++            );
++            surface_texture.status = native::WGPUSurfaceGetCurrentTextureStatus_Error;
++            surface_texture.texture = std::ptr::null_mut();
++            return;
++        }
+     };
+ 
+     match context.surface_get_current_texture(surface.id, None) {
+@@ -5471,7 +5534,16 @@ pub unsafe extern "C-unwind" fn wgpuSurfaceGetCurrentTexture(
+                 None => std::ptr::null_mut(),
+             };
+         }
+-        Err(cause) => handle_error_fatal(cause, "wgpuSurfaceGetCurrentTexture"),
++        Err(cause) => {
++            surface_texture.status = native::WGPUSurfaceGetCurrentTextureStatus_Error;
++            surface_texture.texture = std::ptr::null_mut();
++            handle_error(
++                &surface_data.error_sink,
++                cause,
++                None,
++                "wgpuSurfaceGetCurrentTexture",
++            );
++        }
+     };
+ }
+ 
+@@ -5524,7 +5596,12 @@ pub unsafe extern "C" fn wgpuSurfaceUnconfigure(surface: native::WGPUSurface) {
+         if data.acquired_texture.is_some() {
+             match surface.context.surface_texture_discard(surface.id) {
+                 Ok(()) | Err(wgc::present::SurfaceError::TextureDestroyed) => (),
+-                Err(cause) => handle_error_fatal(cause, "wgpuSurfaceUnconfigure"),
++                Err(cause) => handle_error(
++                    &data.error_sink,
++                    cause,
++                    None,
++                    "wgpuSurfaceUnconfigure",
++                ),
+             }
+         }
+     }
+@@ -5843,9 +5920,9 @@ pub unsafe extern "C-unwind" fn wgpuDevicePoll(
+     submission_index: Option<&native::WGPUSubmissionIndex>,
+     timeout_ns: u64,
+ ) -> native::WGPUNativePollStatus {
+-    let (device_id, context) = {
++    let (device_id, context, error_sink) = {
+         let device = device.as_ref().expect("invalid device");
+-        (device.id, &device.context)
++        (device.id, &device.context, &device.error_sink)
+     };
+ 
+     let maintain = match wait != 0 {
+@@ -5863,8 +5940,14 @@ pub unsafe extern "C-unwind" fn wgpuDevicePoll(
+         // Running out of time on a bounded wait is an expectable runtime
+         // condition (the device and queue remain valid), not a fatal error.
+         Err(wgc::device::WaitIdleError::Timeout) => native::WGPUNativePollStatus_Timeout,
++        // A lost device is reported like any other device error (firing the lost callback).
++        Err(wgc::device::WaitIdleError::Device(cause)) => {
++            handle_error(error_sink, cause, None, "wgpuDevicePoll");
++            native::WGPUNativePollStatus_Error
++        }
+         Err(cause) => {
+-            handle_error_fatal(cause, "wgpuDevicePoll");
++            log::error!("wgpuDevicePoll: {}", format_error(&cause));
++            native::WGPUNativePollStatus_Error
+         }
+     }
+ }
+@@ -6025,7 +6108,12 @@ pub unsafe extern "C" fn wgpuRenderBundleEncoderSetImmediates(
+         offset,
+         make_slice(data, size as usize),
+     ) {
+-        handle_error_fatal(cause, "wgpuRenderBundleEncoderSetImmediates");
++        handle_error(
++            &bundle.error_sink,
++            cause,
++            None,
++            "wgpuRenderBundleEncoderSetImmediates",
++        );
+     }
+ }
+ 
+-- 
+2.55.0.windows.3
+

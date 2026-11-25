@@ -8,8 +8,15 @@
   },
   "patches": [
     "0001-build-against-wgpu-v30.0.2.patch",
-    "0002-implement-futures-and-unimplemented-functions.patch"
+    "0002-implement-futures-and-unimplemented-functions.patch",
+    "0003-report-errors-and-device-loss.patch"
   ],
+  "wgpuSource": {
+    "repository": "https://github.com/gfx-rs/wgpu.git",
+    "commit": "2b38d994b38dd001157d31fd3321111103a8dd80",
+    "description": "The wgpu-v30.0.2 tag plus these patches; wgpu-native builds against it through a Cargo [patch] (eng/build-native.cs)",
+    "patches": ["wgpu/0001-dx12-report-removed-devices.patch"]
+  },
   "targets": {
     "win-x64": "x86_64-pc-windows-msvc",
     "win-arm64": "aarch64-pc-windows-msvc",

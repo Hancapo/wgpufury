@@ -19,8 +19,8 @@ link wgpu-native statically into a single-file Native AOT executable.
 
 | | |
 |---|---|
-| wgpu | **30.0.2** (`wgpu-core`, `wgpu-hal`, `naga` at the `wgpu-v30.0.2` tag) |
-| Native library | wgpu-native built from source: the wgpu 30 port plus two patches (below); reports version `30.0.2.0` |
+| wgpu | **30.0.2** (`wgpu-core`, `wgpu-hal`, `naga` at the `wgpu-v30.0.2` tag, plus one patch) |
+| Native library | wgpu-native built from source: the wgpu 30 port plus three patches (below); reports version `30.0.2.0` |
 | Target | `net10.0`; Native AOT, trimming |
 | Platforms | win-x64, win-arm64, win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64, built by [CI](.github/workflows/ci.yml). So far only win-x64 and win-x86 have been built, and only win-x64 tested. |
 
@@ -36,9 +36,18 @@ commit from source, with the patches in [`eng/patches`](eng/patches) on top:
 2. [`0002-implement-futures-and-unimplemented-functions.patch`](eng/patches/0002-implement-futures-and-unimplemented-functions.patch):
    implements every function the port still left as an aborting stub, plus a few related aborts
    ([details](#what-the-patches-implement)).
+3. [`0003-report-errors-and-device-loss.patch`](eng/patches/0003-report-errors-and-device-loss.patch): errors
+   that wgpu-native turned into a process abort (surfaces, polling, render bundles, device release) are
+   reported instead, and the device-lost callback fires when wgpu loses the device by itself
+   ([details](#errors-and-device-loss)).
 
-The commit, the patch list and the version string are pinned in [`eng/native.lock.json`](eng/native.lock.json).
-[`eng/build-native.cs`](eng/build-native.cs) checks the commit out into `native/src`, applies the patches, runs
+wgpu itself gets one patch, [`wgpu/0001-dx12-report-removed-devices.patch`](eng/patches/wgpu/0001-dx12-report-removed-devices.patch):
+on Direct3D 12, a removed device (driver crash, TDR, GPU reset) looked like an idle queue, so wgpu never
+noticed it ([details](#errors-and-device-loss)).
+
+The commits, the patch lists and the version string are pinned in [`eng/native.lock.json`](eng/native.lock.json).
+[`eng/build-native.cs`](eng/build-native.cs) checks wgpu-native out into `native/src` and wgpu into
+`native/wgpu`, applies the patches, points wgpu-native at the patched wgpu with a Cargo `[patch]`, runs
 `cargo build --release` and copies the result into `native/<rid>`. When #630 merges and wgpu-native releases
 wgpu 30, the pin can move to that release and patch 1 can go.
 
@@ -125,8 +134,9 @@ All asynchronous functions return a real `WGPUFuture`, and callbacks honor their
   requires the instance to be created with `WGPUInstanceFeatureName.TimedWaitAny`. Up to 64 futures per timed
   wait, or the `TimedWaitAnyMaxCount` the instance asked for.
 - Releasing the instance fires its pending callbacks with `CallbackCancelled`.
-- `device.GetLostFuture()` completes when the device is lost, destroyed (`Destroyed`) or released, or when
-  device creation fails (`FailedCreation`).
+- `device.GetLostFuture()` completes when the device is lost (`Unknown`), destroyed (`Destroyed`) or released,
+  or when device creation fails (`FailedCreation`). A spontaneous lost callback for a real loss runs on a new
+  thread, because wgpu detects the loss while holding its own locks.
 - `Create{Compute,Render}PipelineAsync` report creation errors to their callback (`ValidationError` /
   `InternalError`), not to error scopes.
 - Without a callback, uncaptured errors and device loss are logged (see `WGPU.SetLogger`) instead of aborting
@@ -157,9 +167,38 @@ It also removes aborts that are reachable from valid or merely mistaken calls:
 - `wgpuCreateInstance` returns null for unsupported required features or limits instead of panicking.
 - The default uncaptured-error and device-lost handlers log instead of aborting.
 
-Calls with null handles or descriptors still panic, as in upstream wgpu-native; those are programming errors.
-[`eng/Generator/unimplemented.txt`](eng/Generator/unimplemented.txt) is empty, so nothing is marked
-`[Obsolete("…aborts the process")]` any more. `tests/WGpuFury.Tests/FutureTests.cs` exercises each of the above.
+Calls with null handles or descriptors, or with invalid enum values, still panic, as in upstream wgpu-native;
+those are programming errors. [`eng/Generator/unimplemented.txt`](eng/Generator/unimplemented.txt) is empty,
+so nothing is marked `[Obsolete("…aborts the process")]` any more. `tests/WGpuFury.Tests/FutureTests.cs`
+exercises each of the above.
+
+### Errors and device loss
+
+Upstream wgpu-native aborts the process whenever wgpu returns an error from one of these calls. Patch 3 reports
+the error instead:
+
+| Call | Now |
+|---|---|
+| `wgpuSurfaceConfigure`, `wgpuSurfaceUnconfigure`, `wgpuDeviceCreateRenderBundleEncoder`, `wgpuRenderBundleEncoderFinish`, `wgpuRenderBundleEncoderSetImmediates` | an error on the device (error scopes, else the uncaptured-error callback) |
+| `wgpuSurfaceGetCurrentTexture` | status `Error` and no texture; the error goes to the device the surface is configured with (logged if unconfigured) |
+| `wgpuInstanceCreateSurface` | returns `NULL` and logs the error |
+| `wgpuDevicePoll` | returns the new `WGPUNativePollStatus.Error`; a lost device fires the lost callback |
+| `wgpuInstanceProcessEvents`, `wgpuInstancePollAllDevices`, releasing a device or surface texture | logs the error |
+
+Patch 3 also registers wgpu's own device-lost hook, which wgpu-native never did. Before, a device that wgpu
+lost by itself (a removed GPU, an unexpected backend error, running out of memory) reached the lost callback
+only if a later call happened to fail with a device-lost error.
+
+That still wasn't enough on Direct3D 12: after a removal, Direct3D reports every fence as complete
+(`UINT64_MAX`) and `Signal` keeps succeeding, so wgpu saw an idle queue and never noticed. The wgpu patch
+checks for that value and reports the device's removal reason (`GetDeviceRemovedReason`), which wgpu turns into
+a lost device.
+
+`tests/WGpuFury.Tests/RobustnessTests.cs` checks this end to end. It removes the real Direct3D 12 device under
+wgpu with `ID3D12Device5::RemoveDevice` (in a child process, since that kills every device in the process),
+then expects the lost callback, a logged `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) and no abort. It also
+misuses surfaces: acquiring before configuring, a zero-sized configuration, and a second swap chain on the same
+window, which wgpu rejects with a validation error ("Invalid surface") without harming the first one.
 
 ## Native AOT and linking
 
@@ -185,9 +224,9 @@ Linux and macOS linker flags are the usual Rust staticlib requirements, but they
 ## Repository layout
 
 ```
-eng/native.lock.json       wgpu-native commit, patch list, version and RID → Rust target map
-eng/patches/               patches applied on top of that commit
-eng/build-native.cs        checks out + patches wgpu-native into native/src and builds native/<rid>
+eng/native.lock.json       wgpu-native and wgpu commits, patch lists, version and RID → Rust target map
+eng/patches/               patches applied on top of wgpu-native (wgpu/: on top of wgpu)
+eng/build-native.cs        checks out + patches wgpu-native (native/src) and wgpu (native/wgpu), builds native/<rid>
 eng/Generator/             header parser + C# emitter (no dependencies, no libclang)
 eng/run-abi-probe.ps1      compiles the generated C layout probe with MSVC → tests/abi/win-*.json
 src/WGpuFury/              the library; Generated/ is generator output, the rest is hand-written
@@ -232,9 +271,10 @@ Native AOT on Windows needs the MSVC build tools ("Desktop development with C++"
 ## Updating wgpu-native
 
 1. Change `source.commit` (and `version`) in `eng/native.lock.json`, and `WGpuNativeVersion` in
-   `Directory.Build.props`.
+   `Directory.Build.props`. Set `wgpuSource.commit` to the wgpu revision the new wgpu-native uses.
 2. Rebase the patches: `dotnet run eng/build-native.cs -- --prepare` stops at the first one that no longer
-   applies. Fix it in `native/src`, commit, and regenerate the patch files with `git format-patch`.
+   applies. Fix it in `native/src` (or `native/wgpu`), commit, and regenerate the patch file with
+   `git format-patch`. Drop the wgpu patch once wgpu includes the fix.
 3. `dotnet run eng/build-native.cs`, then `dotnet run --project eng/Generator` to regenerate the bindings. The
    parser fails loudly on header constructs it doesn't know, rather than mis-binding them.
 4. Grep wgpu-native's `src/` for `unimplemented!()` / `todo!()` and list any affected export in

@@ -2663,6 +2663,11 @@ public enum WGPUNativePollStatus
     /// queue remain valid, and the caller may poll or wait again.
     /// </summary>
     Timeout = 0x00000004,
+    /// <summary>
+    /// The poll failed, e.g. because the device is lost. The error is also reported to the
+    /// device (its error scopes or uncaptured-error callback, or its lost callback).
+    /// </summary>
+    Error = 0x00000005,
 }
 
 /// <summary>
