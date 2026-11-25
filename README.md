@@ -22,7 +22,7 @@ link wgpu-native statically into a single-file Native AOT executable.
 | wgpu | **30.0.2** (`wgpu-core`, `wgpu-hal`, `naga` at the `wgpu-v30.0.2` tag, plus one patch) |
 | Native library | wgpu-native built from source: the wgpu 30 port plus three patches (below); reports version `30.0.2.0` |
 | Target | `net10.0`; Native AOT, trimming |
-| Platforms | win-x64, win-arm64, win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64, built by [CI](.github/workflows/ci.yml). So far only win-x64 and win-x86 have been built, and only win-x64 tested. |
+| Platforms | win-x64, win-arm64, win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64, all built by [CI](.github/workflows/ci.yml). CI also runs the tests on win-x64, win-x86 (a 32-bit process), win-arm64, linux-x64 and osx-arm64. |
 
 ## Where wgpu 30 comes from
 
@@ -40,6 +40,8 @@ commit from source, with the patches in [`eng/patches`](eng/patches) on top:
    that wgpu-native turned into a process abort (surfaces, polling, render bundles, device release) are
    reported instead, and the device-lost callback fires when wgpu loses the device by itself
    ([details](#errors-and-device-loss)).
+4. [`0004-explain-d3d12-device-removal.patch`](eng/patches/0004-explain-d3d12-device-removal.patch): on
+   Direct3D 12, the device-lost message says why the device was removed.
 
 wgpu itself gets one patch, [`wgpu/0001-dx12-report-removed-devices.patch`](eng/patches/wgpu/0001-dx12-report-removed-devices.patch):
 on Direct3D 12, a removed device (driver crash, TDR, GPU reset) looked like an idle queue, so wgpu never
@@ -194,6 +196,17 @@ That still wasn't enough on Direct3D 12: after a removal, Direct3D reports every
 checks for that value and reports the device's removal reason (`GetDeviceRemovedReason`), which wgpu turns into
 a lost device.
 
+wgpu's own message for every backend failure is just "Device is lost". Patch 4 adds the Direct3D 12 removal
+reason to the lost callback's message. After `RemoveDevice` in the test, it reads:
+
+```
+Device is lost: Direct3D 12 removed the device (DXGI_ERROR_DEVICE_REMOVED): The GPU device instance has been
+suspended. Use GetDeviceRemovedReason to determine the appropriate action. (0x887A0005)
+```
+
+The possible reasons are `DXGI_ERROR_DEVICE_REMOVED`, `DEVICE_HUNG`, `DEVICE_RESET`, `DRIVER_INTERNAL_ERROR` and
+`INVALID_CALL`.
+
 `tests/WGpuFury.Tests/RobustnessTests.cs` checks this end to end. It removes the real Direct3D 12 device under
 wgpu with `ID3D12Device5::RemoveDevice` (in a child process, since that kills every device in the process),
 then expects the lost callback, a logged `0x887A0005` (`DXGI_ERROR_DEVICE_REMOVED`) and no abort. It also
@@ -260,7 +273,8 @@ Native AOT on Windows needs the MSVC build tools ("Desktop development with C++"
 - **Struct layout**: the generator also writes [`tests/abi/layout_probe.c`](tests/abi/layout_probe.c), which
   prints `sizeof` and every `offsetof` according to the C compiler. `AbiTests` compares every named struct,
   field by field, with the C# layout for the current RID. The win-x64 and win-x86 dumps are committed; CI
-  produces the Linux and macOS ones with `cc`.
+  produces the win-arm64 one with MSVC and the Linux and macOS ones with `cc`. In CI, each job also checks
+  that the tests really ran as its RID, so the x86 job can't silently pass as a 64-bit process.
 - **Exports**: every imported function is looked up in the shipped native library, and resolved through
   `wgpuGetProcAddress`.
 - **Behavior**: compute and offscreen-render round trips on a real device, and the futures tests above. These
