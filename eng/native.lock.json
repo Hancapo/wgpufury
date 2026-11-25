@@ -22,7 +22,8 @@
     "description": "The wgpu-v30.0.2 tag plus these patches; wgpu-native builds against it through a Cargo [patch] (eng/build-native.cs)",
     "patches": [
       "wgpu/0001-dx12-report-removed-devices.patch",
-      "wgpu/0002-dx12-align-pipeline-stream-subobjects.patch"
+      "wgpu/0002-dx12-align-pipeline-stream-subobjects.patch",
+      "wgpu/0003-dont-panic-when-pending-writes-cannot-start.patch"
     ]
   },
   "targets": {

@@ -1,0 +1,144 @@
+From cf244cf6c76c048645e6ba3147c5b001559c8767 Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 18:07:46 -0300
+Subject: [PATCH] Don't panic when a lost device can't start the pending-writes
+ encoder
+
+PendingWrites::activate unwrapped begin_encoding. On a device the GPU has
+removed but wgpu hasn't noticed yet, begin_encoding fails with Lost, and the
+panic aborted the process: on present (clearing a never-rendered surface
+texture), on queue writes, and the other callers. activate now returns the
+error, and each caller passes it to Device::handle_hal_error, which loses
+the device (firing the device-lost callback) and returns a DeviceError.
+---
+ wgpu-core/src/device/queue.rs | 44 +++++++++++++++++++++++------------
+ wgpu-core/src/resource.rs     |  4 +++-
+ 2 files changed, 32 insertions(+), 16 deletions(-)
+
+diff --git a/wgpu-core/src/device/queue.rs b/wgpu-core/src/device/queue.rs
+index 1c0ac26..9d8e24a 100644
+--- a/wgpu-core/src/device/queue.rs
++++ b/wgpu-core/src/device/queue.rs
+@@ -76,7 +76,9 @@ impl Queue {
+         let mut pending_writes = PendingWrites::new(pending_encoder, instance_flags);
+ 
+         let zero_buffer = device.zero_buffer.as_ref();
+-        pending_writes.activate();
++        pending_writes
++            .activate()
++            .map_err(|e| device.handle_hal_error(e))?;
+         unsafe {
+             pending_writes
+                 .command_encoder
+@@ -146,7 +148,9 @@ impl Queue {
+         if needs_clear {
+             // After encoding the clear operation, we must not return without
+             // adding the texture to `pending_writes`.
+-            let encoder = pending_writes.activate();
++            let encoder = pending_writes
++                .activate()
++                .map_err(|e| self.device.handle_hal_error(e))?;
+             let mut trackers = device.trackers.lock();
+             crate::command::clear_texture(
+                 texture,
+@@ -206,7 +210,9 @@ impl Queue {
+                 .map(|pt| pt.into_hal(raw_texture))
+                 .collect();
+ 
+-            let encoder = pending_writes.activate();
++            let encoder = pending_writes
++                .activate()
++                .map_err(|e| self.device.handle_hal_error(e))?;
+             // SAFETY:
+             // - The encoder is in the recording state after `activate()`
+             // - The texture is kept alive by adding it to `PendingWrites` below
+@@ -492,19 +498,19 @@ impl PendingWrites {
+         }
+     }
+ 
+-    pub fn activate(&mut self) -> &mut dyn hal::DynCommandEncoder {
++    /// Fails if the device can't start the command encoder, e.g. because it was lost; callers pass
++    /// the error to [`Device::handle_hal_error`].
++    pub fn activate(&mut self) -> Result<&mut dyn hal::DynCommandEncoder, hal::DeviceError> {
+         if !self.is_recording {
+             unsafe {
+-                self.command_encoder
+-                    .begin_encoding(hal_label(
+-                        Some("(wgpu internal) PendingWrites"),
+-                        self.instance_flags,
+-                    ))
+-                    .unwrap();
++                self.command_encoder.begin_encoding(hal_label(
++                    Some("(wgpu internal) PendingWrites"),
++                    self.instance_flags,
++                ))?;
+             }
+             self.is_recording = true;
+         }
+-        self.command_encoder.as_mut()
++        Ok(self.command_encoder.as_mut())
+     }
+ }
+ 
+@@ -830,7 +836,9 @@ impl Queue {
+         })
+         .chain(transition.map(|pending| pending.into_hal(&buffer, snatch_guard)))
+         .collect::<Vec<_>>();
+-        let encoder = pending_writes.activate();
++        let encoder = pending_writes
++            .activate()
++            .map_err(|e| self.device.handle_hal_error(e))?;
+         unsafe {
+             encoder.transition_buffers(&barriers);
+             encoder.copy_buffer_to_buffer(staging_buffer.raw(), dst_raw, &[region]);
+@@ -922,7 +930,9 @@ impl Queue {
+         }
+ 
+         let mut pending_writes = self.pending_writes.lock();
+-        let encoder = pending_writes.activate();
++        let encoder = pending_writes
++            .activate()
++            .map_err(|e| self.device.handle_hal_error(e))?;
+ 
+         // If the copy does not fully cover the layers, we need to initialize to
+         // zero *first* as we don't keep track of partial texture layer inits.
+@@ -1184,7 +1194,9 @@ impl Queue {
+         }
+ 
+         let mut pending_writes = self.pending_writes.lock();
+-        let encoder = pending_writes.activate();
++        let encoder = pending_writes
++            .activate()
++            .map_err(|e| self.device.handle_hal_error(e))?;
+ 
+         // If the copy does not fully cover the layers, we need to initialize to
+         // zero *first* as we don't keep track of partial texture layer inits.
+@@ -1782,7 +1794,9 @@ impl Queue {
+         size_info.acceleration_structure_size = size;
+ 
+         let mut pending_writes = self.pending_writes.lock();
+-        let cmd_buf_raw = pending_writes.activate();
++        let cmd_buf_raw = pending_writes
++            .activate()
++            .map_err(|e| self.device.handle_hal_error(e))?;
+ 
+         let raw = unsafe {
+             device
+diff --git a/wgpu-core/src/resource.rs b/wgpu-core/src/resource.rs
+index fc7150a..0c7515e 100644
+--- a/wgpu-core/src/resource.rs
++++ b/wgpu-core/src/resource.rs
+@@ -1021,7 +1021,9 @@ impl Buffer {
+                         },
+                     };
+                     let mut pending_writes = queue.pending_writes.lock();
+-                    let encoder = pending_writes.activate();
++                    let encoder = pending_writes
++                        .activate()
++                        .map_err(|e| self.device.handle_hal_error(e))?;
+                     unsafe {
+                         encoder.transition_buffers(&[transition_src, transition_dst]);
+                         if self.size > 0 {
+-- 
+2.55.0.windows.3
+
