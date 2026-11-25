@@ -1,8 +1,11 @@
 name: CI
 
 on:
+  # Branch pushes are covered by their pull request; building them on push too would run everything twice.
   push:
+    branches: [master]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   # wgpu-native has no wgpu 30 release, so it is built from source: the commit pinned in
@@ -71,6 +74,10 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
+          - os: windows-latest
+            rid: win-x86
+          - os: windows-11-arm
+            rid: win-arm64
           - os: ubuntu-latest
             rid: linux-x64
           - os: macos-latest
@@ -82,6 +89,19 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
+      # setup-dotnet installs the runner's architecture. With an x86 SDK first on PATH, the build targets
+      # win-x86 and the test host is a 32-bit process. (Windows runners have no GPU: the Direct3D 12 tests
+      # run on Windows' software adapter, WARP.)
+      - name: x86 .NET SDK
+        if: matrix.rid == 'win-x86'
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP dotnet-x86
+          Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -OutFile (Join-Path $env:RUNNER_TEMP dotnet-install.ps1)
+          & (Join-Path $env:RUNNER_TEMP dotnet-install.ps1) -Channel 10.0 -Architecture x86 -InstallDir $dir
+          $dir | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "DOTNET_ROOT=$dir" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - uses: actions/download-artifact@v4
         with:
@@ -98,22 +118,32 @@ jobs:
           dotnet run --project eng/Generator
           git diff --exit-code -- src/WGpuFury/Generated tests
 
-      - name: C struct layouts (non-Windows; Windows dumps are committed)
+      - name: C struct layouts (non-Windows; the win-x64 and win-x86 dumps are committed)
         if: runner.os != 'Windows'
         run: |
           cc -std=c11 -I native/${{ matrix.rid }}/include tests/abi/layout_probe.c -o layout_probe
           ./layout_probe > tests/abi/${{ matrix.rid }}.json
 
+      - name: C struct layouts (win-arm64, with MSVC)
+        if: matrix.rid == 'win-arm64'
+        run: pwsh eng/run-abi-probe.ps1 -Arch arm64
+
       - name: Build
         run: dotnet build WGpuFury.slnx -c Release
 
+      # WGPUFURY_EXPECTED_RID makes AbiTests fail if the tests ran as another RID (say, a 64-bit process on the
+      # x86 leg), which would otherwise compare the wrong layout dump and pass.
       - name: Test
         run: dotnet test --solution WGpuFury.slnx -c Release --no-build
+        env:
+          WGPUFURY_EXPECTED_RID: ${{ matrix.rid }}
 
       - name: Native AOT, dynamic wgpu-native
+        if: matrix.rid != 'win-x86'
         run: dotnet publish samples/Compute -r ${{ matrix.rid }} -o artifacts/aot-dynamic
 
       - name: Native AOT, static wgpu-native
+        if: matrix.rid != 'win-x86'
         run: dotnet publish samples/Compute -r ${{ matrix.rid }} -p:WGpuFuryLinkage=Static -o artifacts/aot-static
 
       - name: Run the AOT samples

@@ -9,7 +9,8 @@
   "patches": [
     "0001-build-against-wgpu-v30.0.2.patch",
     "0002-implement-futures-and-unimplemented-functions.patch",
-    "0003-report-errors-and-device-loss.patch"
+    "0003-report-errors-and-device-loss.patch",
+    "0004-explain-d3d12-device-removal.patch"
   ],
   "wgpuSource": {
     "repository": "https://github.com/gfx-rs/wgpu.git",

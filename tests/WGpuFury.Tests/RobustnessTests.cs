@@ -158,7 +158,8 @@ public sealed unsafe class RobustnessTests
             report.Add($"lost callback: {s_lostReason}: {s_lostMessage}");
             Assert.AreEqual(1, s_lostCalls);
             Assert.AreEqual(WGPUDeviceLostReason.Unknown, s_lostReason);
-            Assert.IsFalse(string.IsNullOrEmpty(s_lostMessage));
+            StringAssert.Contains(s_lostMessage, "DXGI_ERROR_DEVICE_REMOVED", "the lost message doesn't say why");
+            StringAssert.Contains(s_lostMessage, "0x887A0005");
 
             // A lost device still accepts calls (they do nothing), and releasing it doesn't abort.
             device.CreateBuffer(new WGPUBufferDescriptor { Size = 256, Usage = WGPUBufferUsage.CopyDst }).Dispose();
