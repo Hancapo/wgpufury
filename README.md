@@ -352,11 +352,24 @@ Native AOT on Windows needs the MSVC build tools ("Desktop development with C++"
 
 ## Updating wgpu-native
 
+The [Upstream](.github/workflows/upstream.yml) workflow checks every Monday whether wgpu-native or wgpu has
+moved past `eng/native.lock.json`. For wgpu-native, it looks at a release for wgpu 30 or later, or else the head
+of the wgpu 30 port (#630); for wgpu, at the newest release. If anything moved, it tries every patch on the new
+commits and fails, so GitHub notifies you. The job summary has a table of which patches still apply, need a
+3-way merge, or conflict. The same check runs locally, with either commit left out to keep the pinned one:
+
+```sh
+dotnet run eng/build-native.cs -- --check-patches --check-source=<wgpu-native commit> --check-wgpu=<wgpu commit>
+```
+
+To update:
+
 1. Change `source.commit` (and `version`) in `eng/native.lock.json`, and `WGpuNativeVersion` in
    `Directory.Build.props`. Set `wgpuSource.commit` to the wgpu revision the new wgpu-native uses.
 2. Rebase the patches: `dotnet run eng/build-native.cs -- --prepare` stops at the first one that no longer
    applies. Fix it in `native/src` (or `native/wgpu`), commit, and regenerate the patch file with
-   `git format-patch`. Drop the wgpu patch once wgpu includes the fix.
+   `git format-patch`. Drop a patch once upstream includes the fix. Patch 1 only exists to build the port
+   against wgpu v30.0.2, so it goes away with a wgpu-native release.
 3. `dotnet run eng/build-native.cs`, then `dotnet run --project eng/Generator` to regenerate the bindings. The
    parser fails loudly on header constructs it doesn't know, rather than mis-binding them.
 4. Grep wgpu-native's `src/` for `unimplemented!()` / `todo!()` and list any affected export in
