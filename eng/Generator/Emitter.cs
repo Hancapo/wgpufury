@@ -160,8 +160,25 @@ internal sealed partial class Emitter
             sb.Append("}\n\n");
         }
 
-        return sb.ToString().TrimEnd() + "\n";
+        // For the argument checks of the methods on handles (see Checks).
+        sb.Append("/// <summary>Whether enum values are defined, for the argument checks of the methods on handles.</summary>\n");
+        sb.Append("internal static class WGPUEnumChecks\n{\n");
+        foreach (EnumDef e in _enums.Values.Where(e => IsCheckedEnum(e) && IsPassedByValue(e)))
+        {
+            string members = string.Join(" or ", e.Members.Where(x => !IsForce32(x)).Select(x => $"{e.Name}.{MemberName(e, x)}"));
+            sb.Append($"{Indent}internal static bool IsDefined({e.Name} value) => value is {members};\n\n");
+        }
+
+        return sb.ToString().TrimEnd() + "\n}\n";
     }
+
+    private bool IsPassedByValue(EnumDef e) =>
+        _m.Functions.Any(f => f.Params.Any(p => p.Type.Pointers == 0 && _enumRedirects.GetValueOrDefault(p.Type.Base, p.Type.Base) == e.Name));
+
+    // Flags combine freely. Feature names stay open-ended: asking whether an unknown feature is supported must
+    // keep answering false, not throw.
+    private static bool IsCheckedEnum(EnumDef e) =>
+        !e.IsFlags && !e.Name.EndsWith("FeatureName", StringComparison.Ordinal) && e.Members.Any(x => !IsForce32(x));
 
     // ---------------------------------------------------------------- structs
 
@@ -406,7 +423,7 @@ internal sealed partial class Emitter
             foreach (FunctionDef f in methods)
             {
                 string method = f.Name[(4 + h.Name.Length - 4)..];
-                EmitCallable(sb, Indent, f, method, isStatic: false, f.Params.Skip(1).ToList(), args => $"{Lib}.{f.Name}({string.Join(", ", args.Prepend("this"))})");
+                EmitCallable(sb, Indent, f, method, isStatic: false, f.Params.Skip(1).ToList(), args => $"{Lib}.{f.Name}({string.Join(", ", args.Prepend("this"))})", receiver: h.Name);
             }
 
             sb.Append("}\n\n");
@@ -494,7 +511,7 @@ internal sealed partial class Emitter
     }
 
     /// <summary>Emits the raw forwarding method (unless already emitted) plus the friendly overloads.</summary>
-    private void EmitCallable(StringBuilder sb, string indent, FunctionDef f, string name, bool isStatic, List<ParamDef> ps, Func<IEnumerable<string>, string> call, bool rawAlreadyEmitted = false)
+    private void EmitCallable(StringBuilder sb, string indent, FunctionDef f, string name, bool isStatic, List<ParamDef> ps, Func<IEnumerable<string>, string> call, bool rawAlreadyEmitted = false, string? receiver = null)
     {
         string ret = Cs(f.Return);
         string retKw = ret == "void" ? "" : "return ";
@@ -505,7 +522,23 @@ internal sealed partial class Emitter
         {
             DocText.Write(sb, indent, f.Doc, ps.Select(p => p.Name).ToList(), extra: fullDoc);
             sb.Append(ObsoleteAttribute(f, indent));
-            sb.Append($"{indent}public {mod}{Hides(name)}{ret} {name}({string.Join(", ", RawParams(ps, withDefaults: true))}) => {call(ps.Select(p => Naming.Identifier(p.Name)))};\n\n");
+            string signature = $"{indent}public {mod}{Hides(name)}{ret} {name}({string.Join(", ", RawParams(ps, withDefaults: true))})";
+            string forward = call(ps.Select(p => Naming.Identifier(p.Name)));
+            List<string> checks = Checks(receiver, ps, pointers: true);
+            if (checks.Count == 0)
+            {
+                sb.Append($"{signature} => {forward};\n\n");
+            }
+            else
+            {
+                sb.Append($"{signature}\n{indent}{{\n");
+                foreach (string check in checks)
+                {
+                    sb.Append($"{indent}{Indent}{check}\n");
+                }
+
+                sb.Append($"{indent}{Indent}{retKw}{forward};\n{indent}}}\n\n");
+            }
         }
 
         foreach (bool stringMode in new[] { false, true })
@@ -522,6 +555,11 @@ internal sealed partial class Emitter
             string where = plan.Generic ? " where TData : unmanaged" : "";
             sb.Append($"{indent}public {mod}{Hides(name)}{ret} {name}{generic}({string.Join(", ", plan.Signature)}){where}\n{indent}{{\n");
             string inner = indent + Indent;
+            // The friendly overloads turn pointers into spans, `in` parameters and strings, which can't be null.
+            foreach (string check in Checks(receiver, ps, pointers: false))
+            {
+                sb.Append($"{inner}{check}\n");
+            }
             foreach (string u in plan.Usings)
             {
                 sb.Append($"{inner}{u}\n");
@@ -543,6 +581,47 @@ internal sealed partial class Emitter
 
             sb.Append($"{indent}}}\n\n");
         }
+    }
+
+    /// <summary>
+    /// Argument checks for a generated method: wgpu-native aborts the process on a null handle, a missing descriptor
+    /// or an undefined enum value, so the method throws first (see <c>Check</c> in the library). <paramref name="receiver"/>
+    /// is the handle type the method is called on. Nullable parameters and arrays (count + pointer, which C allows to be
+    /// null when empty) aren't checked.
+    /// </summary>
+    private List<string> Checks(string? receiver, List<ParamDef> ps, bool pointers)
+    {
+        var checks = new List<string>();
+        if (receiver != null)
+        {
+            checks.Add($"if (IsNull) Check.ThrowNullHandle(\"{receiver}\");");
+        }
+
+        for (int i = 0; i < ps.Count; i++)
+        {
+            ParamDef p = ps[i];
+            string pn = Naming.Identifier(p.Name);
+            if (p.Nullable || (i > 0 && IsCountPair(ps[i - 1], p)))
+            {
+                continue;
+            }
+
+            string type = _enumRedirects.GetValueOrDefault(p.Type.Base, p.Type.Base);
+            if (p.Type.Pointers == 0 && _handles.ContainsKey(p.Type.Base))
+            {
+                checks.Add($"if ({pn}.IsNull) Check.ThrowNullArgument(nameof({pn}));");
+            }
+            else if (p.Type.Pointers == 0 && _enums.TryGetValue(type, out EnumDef? e) && IsCheckedEnum(e))
+            {
+                checks.Add($"if (!WGPUEnumChecks.IsDefined({pn})) Check.ThrowUndefined(nameof({pn}), {pn});");
+            }
+            else if (pointers && p.Type.Pointers == 1 && _structs.ContainsKey(p.Type.Base))
+            {
+                checks.Add($"if ({pn} == null) Check.ThrowNullArgument(nameof({pn}));");
+            }
+        }
+
+        return checks;
     }
 
     private string? UnimplementedNote(FunctionDef f) =>
