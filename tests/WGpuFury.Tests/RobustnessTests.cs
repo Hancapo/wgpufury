@@ -93,7 +93,8 @@ public sealed unsafe class RobustnessTests
             using (adapter)
             using (WGPUDevice device = adapter.RequestDeviceSync(instance))
             {
-                device.PushErrorScope((WGPUErrorFilter)0x7777);
+                // The raw function: device.PushErrorScope checks the value and throws instead.
+                WGPU.wgpuDevicePushErrorScope(device, (WGPUErrorFilter)0x7777);
             }
 
             File.AppendAllText(reportFile, "the process didn't abort\n");
