@@ -10,6 +10,7 @@
     <Description>Native AOT friendly .NET bindings for wgpu-native $(WGpuNativeVersion) (webgpu.h + wgpu.h), generated from the C headers.</Description>
     <PackageTags>webgpu;wgpu;gpu;graphics;compute;aot</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
