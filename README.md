@@ -20,7 +20,7 @@ link wgpu-native statically into a single-file Native AOT executable.
 | | |
 |---|---|
 | wgpu | **30.0.2** (`wgpu-core`, `wgpu-hal`, `naga` at the `wgpu-v30.0.2` tag, plus two patches) |
-| Native library | wgpu-native built from source: the wgpu 30 port plus six patches (below); reports version `30.0.2.0` |
+| Native library | wgpu-native built from source: the wgpu 30 port plus eight patches (below); reports version `30.0.2.0` |
 | Target | `net10.0`; Native AOT, trimming |
 | Platforms | win-x64, win-arm64, win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64, all built by [CI](.github/workflows/ci.yml). CI also runs the tests on win-x64, win-x86 (a 32-bit process), win-arm64, linux-x64 and osx-arm64. |
 
@@ -50,6 +50,11 @@ commit from source, with the patches in [`eng/patches`](eng/patches) on top:
 6. [`0006-only-warn-about-real-device-losses.patch`](eng/patches/0006-only-warn-about-real-device-losses.patch):
    without a lost callback, releasing or destroying a device logged a "device lost" warning. Only real
    losses do now.
+7. [`0007-log-panics-before-aborting.patch`](eng/patches/0007-log-panics-before-aborting.patch): a panic
+   aborts the process, and its message went only to stderr. With a log callback set, it is logged first.
+8. [`0008-add-d3d12-dred.patch`](eng/patches/0008-add-d3d12-dred.patch): `WGPUInstanceFlag.D3D12DRED` turns on
+   Direct3D 12 DRED, and the device-lost message then says what the GPU was doing
+   ([details](#what-the-gpu-was-doing-dred)).
 
 wgpu itself gets two patches:
 
@@ -131,7 +136,8 @@ Everything else in the API is generated. These were written by hand:
   the stack, so there are no delegates or GC handles. `MapSync` only needs the device: it maps with
   `AllowSpontaneous` and blocks in `wgpuDevicePoll`.
 - `buffer.GetMappedRange<T>()` / `GetConstMappedRange<T>()` return typed spans over mapped memory.
-- `WGPU.SetLogger(level, (lvl, msg) => ...)` routes wgpu-native's log output to a managed callback.
+- `WGPU.SetLogger(level, (lvl, msg) => ...)` routes wgpu-native's log output to a managed callback, including
+  the message of a panic just before it aborts the process.
 - `WGPU.NativeVersion` is the version reported by the loaded library; `WGPU.BindingsVersion` the one the
   bindings were generated for.
 
@@ -184,7 +190,10 @@ It also removes aborts that are reachable from valid or merely mistaken calls:
 - The default uncaptured-error and device-lost handlers log instead of aborting.
 
 Calls with null handles or descriptors, or with invalid enum values, still panic, as in upstream wgpu-native;
-those are programming errors. [`eng/Generator/unimplemented.txt`](eng/Generator/unimplemented.txt) is empty,
+those are programming errors. The panic aborts the process, but once a logger is set (`WGPU.SetLogger`) it
+first receives the panic message and location at error level, e.g. "wgpu-native panicked at src\lib.rs:3830:18:
+invalid error filter" (patch 7); before, that went only to stderr. A logger that buffers must flush on every
+message to keep it. [`eng/Generator/unimplemented.txt`](eng/Generator/unimplemented.txt) is empty,
 so nothing is marked `[Obsolete("…aborts the process")]` any more. `tests/WGpuFury.Tests/FutureTests.cs`
 exercises each of the above.
 
@@ -220,6 +229,37 @@ suspended. Use GetDeviceRemovedReason to determine the appropriate action. (0x88
 
 The possible reasons are `DXGI_ERROR_DEVICE_REMOVED`, `DEVICE_HUNG`, `DEVICE_RESET`, `DRIVER_INTERNAL_ERROR` and
 `INVALID_CALL`.
+
+#### What the GPU was doing: DRED
+
+"Hung" says that the GPU stopped responding, not at what. Direct3D 12's Device Removed Extended Data (DRED)
+records how far the GPU got through each command list, with the debug groups and pass labels around it, and the
+address of a GPU page fault. Patch 8 adds `WGPUInstanceFlag.D3D12DRED` to turn it on:
+
+```csharp
+var extras = new WGPUInstanceExtras
+{
+    Chain = new WGPUChainedStruct { SType = WGPUSType.InstanceExtras },
+    Flags = WGPUInstanceFlag.D3D12DRED,
+};
+using WGPUInstance instance = WGPU.wgpuCreateInstance(new WGPUInstanceDescriptor { NextInChain = &extras.Chain });
+```
+
+With `WGPUInstanceFlag.WithEnv`, setting `WGPU_D3D12_DRED=1` does the same, so a build can turn it on without
+code changes. After a removal, the lost message ends with a DRED report such as:
+
+```
+DRED: command list "frame encoder" on queue (unnamed) stopped after 4 of 7 operations, at DrawIndexedInstanced
+inside "shadow pass" > "cascade 2". GPU page fault at 0x1F2A0000, in "vertex buffer".
+```
+
+Label encoders, passes and debug groups to get those names. DRED applies to every Direct3D 12 device created
+afterwards in the process and costs some GPU time, so it is meant for test builds; it needs Windows 10 2004 or
+later, and is ignored elsewhere.
+
+That report's format is what patch 8's unit tests check, by feeding the report hand-made DRED data. On a real
+machine, only a genuine GPU hang or page fault leaves unfinished command lists. `RemoveDevice`, which the tests below use, first
+waits for the GPU to finish, so there the report only says that every recorded command list had finished.
 
 `tests/WGpuFury.Tests/RobustnessTests.cs` checks this end to end. It removes the real Direct3D 12 device under
 wgpu with `ID3D12Device5::RemoveDevice` (in a child process, since that kills every device in the process),

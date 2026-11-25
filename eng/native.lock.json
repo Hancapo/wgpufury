@@ -12,7 +12,9 @@
     "0003-report-errors-and-device-loss.patch",
     "0004-explain-d3d12-device-removal.patch",
     "0005-accept-unaligned-chained-structs.patch",
-    "0006-only-warn-about-real-device-losses.patch"
+    "0006-only-warn-about-real-device-losses.patch",
+    "0007-log-panics-before-aborting.patch",
+    "0008-add-d3d12-dred.patch"
   ],
   "wgpuSource": {
     "repository": "https://github.com/gfx-rs/wgpu.git",

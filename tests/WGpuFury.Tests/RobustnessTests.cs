@@ -12,7 +12,7 @@ namespace WGpuFury.Tests;
 [TestClass]
 public sealed unsafe class RobustnessTests
 {
-    private const string ChildReportVariable = "WGPUFURY_DEVICE_REMOVAL_REPORT";
+    private const string ChildReportVariable = "WGPUFURY_CHILD_TEST_REPORT";
     private const int DxgiErrorDeviceRemoved = unchecked((int)0x887A0005);
 
     private static readonly ManualResetEventSlim s_lost = new();
@@ -48,7 +48,7 @@ public sealed unsafe class RobustnessTests
             Assert.Inconclusive("Direct3D 12 only.");
         }
 
-        if (Environment.GetEnvironmentVariable(ChildReportVariable) is { } reportFile)
+        if (ChildReport() is { } reportFile)
         {
             var lines = new List<string>();
             try
@@ -63,6 +63,65 @@ public sealed unsafe class RobustnessTests
             return;
         }
 
+        (int exitCode, string[] report, string output) = RunInChildProcess(nameof(RemovingTheD3D12DeviceFiresTheLostCallback));
+        Assert.AreEqual(0, exitCode, $"The device-removal child process failed:\n{string.Join('\n', report)}\n{output}");
+        if (report.FirstOrDefault() is { } first && first.StartsWith("skip: ", StringComparison.Ordinal))
+        {
+            Assert.Inconclusive(first);
+        }
+    }
+
+    /// <summary>
+    /// A panic in wgpu-native (here a deliberate one: an invalid error filter) aborts the process, and Rust only
+    /// reports it on stderr. It now reaches the log callback first. The abort kills the process, so this runs in a
+    /// child test process.
+    /// </summary>
+    [TestMethod]
+    public void PanicsReachTheLoggerBeforeTheProcessAborts()
+    {
+        if (ChildReport() is { } reportFile)
+        {
+            // Written line by line: nothing buffered survives the abort.
+            WGPU.SetLogger(WGPULogLevel.Error, (level, message) => File.AppendAllText(reportFile, $"{level}: {message}\n"));
+            using WGPUInstance instance = WGPU.wgpuCreateInstance(null);
+            if (!TryRequestAdapter(instance, out WGPUAdapter adapter, out string? why))
+            {
+                File.AppendAllText(reportFile, $"skip: {why}\n");
+                return;
+            }
+
+            using (adapter)
+            using (WGPUDevice device = adapter.RequestDeviceSync(instance))
+            {
+                device.PushErrorScope((WGPUErrorFilter)0x7777);
+            }
+
+            File.AppendAllText(reportFile, "the process didn't abort\n");
+            return;
+        }
+
+        (int exitCode, string[] report, string output) = RunInChildProcess(nameof(PanicsReachTheLoggerBeforeTheProcessAborts));
+        string text = string.Join('\n', report);
+        if (text.StartsWith("skip: ", StringComparison.Ordinal))
+        {
+            Assert.Inconclusive(text);
+        }
+
+        Assert.AreNotEqual(0, exitCode, $"The child process should have aborted:\n{text}\n{output}");
+        StringAssert.Contains(text, "Error: wgpu-native panicked at", $"the panic didn't reach the logger:\n{output}");
+        StringAssert.Contains(text, "invalid error filter");
+        StringAssert.Contains(text, "The process will abort.");
+    }
+
+    /// <summary>The report file to write, when this process is a child started by <see cref="RunInChildProcess"/>.</summary>
+    private static string? ChildReport() => Environment.GetEnvironmentVariable(ChildReportVariable);
+
+    /// <summary>
+    /// Runs one test of this class in a new test process, for tests that remove the Direct3D 12 device or abort,
+    /// which would take the other tests down with them. The child writes its findings to a report file.
+    /// </summary>
+    private (int ExitCode, string[] Report, string Output) RunInChildProcess(string testName)
+    {
         string report = Path.GetTempFileName();
         try
         {
@@ -72,7 +131,7 @@ public sealed unsafe class RobustnessTests
                 RedirectStandardError = true,
             };
             psi.ArgumentList.Add("--filter");
-            psi.ArgumentList.Add("FullyQualifiedName~" + nameof(RemovingTheD3D12DeviceFiresTheLostCallback));
+            psi.ArgumentList.Add($"FullyQualifiedName~{nameof(RobustnessTests)}.{testName}");
             psi.Environment[ChildReportVariable] = report;
 
             using Process child = Process.Start(psi)!;
@@ -81,7 +140,7 @@ public sealed unsafe class RobustnessTests
             if (!child.WaitForExit(TimeSpan.FromMinutes(2)))
             {
                 child.Kill(entireProcessTree: true);
-                Assert.Fail("The device-removal child process hung:\n" + stdout.Result + stderr.Result);
+                Assert.Fail($"The {testName} child process hung:\n{stdout.Result}{stderr.Result}");
             }
 
             string[] lines = File.ReadAllLines(report);
@@ -90,11 +149,7 @@ public sealed unsafe class RobustnessTests
                 TestContext.WriteLine(line);
             }
 
-            Assert.AreEqual(0, child.ExitCode, $"The device-removal child process failed:\n{string.Join('\n', lines)}\n{stdout.Result}{stderr.Result}");
-            if (lines.FirstOrDefault() is { } first && first.StartsWith("skip: ", StringComparison.Ordinal))
-            {
-                Assert.Inconclusive(first);
-            }
+            return (child.ExitCode, lines, stdout.Result + stderr.Result);
         }
         finally
         {
@@ -113,7 +168,8 @@ public sealed unsafe class RobustnessTests
             }
         });
 
-        using WGPUInstance instance = CreateD3D12Instance();
+        // DRED, so the lost message also says what the GPU was doing (patch 0008).
+        using WGPUInstance instance = CreateD3D12Instance(WGPUInstanceFlag.D3D12DRED);
         if (!TryRequestAdapter(instance, out WGPUAdapter adapter, out string? why))
         {
             report.Add("skip: " + why);
@@ -125,7 +181,7 @@ public sealed unsafe class RobustnessTests
             var info = new WGPUAdapterInfo();
             adapter.GetInfo(&info);
             (uint vendorId, uint deviceId) = (info.VendorID, info.DeviceID);
-            report.Add($"adapter: {info.Device} (0x{vendorId:X4}:0x{deviceId:X4})");
+            report.Add($"adapter: {info.Device} (0x{vendorId:X4}:0x{deviceId:X4}, {info.AdapterType})");
             info.FreeMembers();
 
             WGPUDevice device = RequestDevice(instance, adapter);
@@ -160,6 +216,9 @@ public sealed unsafe class RobustnessTests
             Assert.AreEqual(WGPUDeviceLostReason.Unknown, s_lostReason);
             StringAssert.Contains(s_lostMessage, "DXGI_ERROR_DEVICE_REMOVED", "the lost message doesn't say why");
             StringAssert.Contains(s_lostMessage, "0x887A0005");
+            // RemoveDevice waits for the GPU to finish first, so DRED has no unfinished command list to describe
+            // here: those only exist after a real hang or page fault. eng/patches/0008's unit tests cover them.
+            StringAssert.Contains(s_lostMessage, "DRED:", "the lost message has no DRED report");
 
             // A lost device still accepts calls (they do nothing), and releasing it doesn't abort.
             device.CreateBuffer(new WGPUBufferDescriptor { Size = 256, Usage = WGPUBufferUsage.CopyDst }).Dispose();
@@ -414,12 +473,13 @@ public sealed unsafe class RobustnessTests
 
     // ---------------------------------------------------------------- helpers
 
-    private static WGPUInstance CreateD3D12Instance()
+    private static WGPUInstance CreateD3D12Instance(WGPUInstanceFlag flags = WGPUInstanceFlag.Empty)
     {
         var extras = new WGPUInstanceExtras
         {
             Chain = new WGPUChainedStruct { SType = WGPUSType.InstanceExtras },
             Backends = WGPUInstanceBackend.DX12,
+            Flags = flags,
         };
         return WGPU.wgpuCreateInstance(new WGPUInstanceDescriptor { NextInChain = &extras.Chain });
     }
