@@ -116,7 +116,7 @@ of the raw API, never in place of it.
 
 | C | C# |
 |---|---|
-| `WGPUDevice` (opaque pointer) | `readonly struct WGPUDevice` holding the handle, with instance methods for every `wgpuDevice*` function and `Dispose()` → `wgpuDeviceRelease` |
+| `WGPUDevice` (opaque pointer) | `readonly struct WGPUDevice` holding the handle, with instance methods for every `wgpuDevice*` function and `Dispose()` → `wgpuDeviceRelease`. The methods throw on null handles, missing descriptors and undefined enum values, where wgpu-native would abort ([details](#what-the-patches-implement)) |
 | `wgpuDeviceCreateBuffer(device, &desc)` | `WGPU.wgpuDeviceCreateBuffer(device, &desc)` (raw), `device.CreateBuffer(&desc)` or `device.CreateBuffer(desc)` (`in` overload) |
 | `struct WGPUBufferDescriptor` | `struct WGPUBufferDescriptor` with the same field order and PascalCase names (`nextInChain` → `NextInChain`) |
 | `float transform[12]` member | `public fixed float Transform[12];` |
@@ -198,11 +198,24 @@ It also removes aborts that are reachable from valid or merely mistaken calls:
 - `wgpuCreateInstance` returns null for unsupported required features or limits instead of panicking.
 - The default uncaptured-error and device-lost handlers log instead of aborting.
 
-Calls with null handles or descriptors, or with invalid enum values, still panic, as in upstream wgpu-native;
-those are programming errors. The panic aborts the process, but once a logger is set (`WGPU.SetLogger`) it
-first receives the panic message and location at error level, e.g. "wgpu-native panicked at src\lib.rs:3830:18:
-invalid error filter" (patch 7); before, that went only to stderr. A logger that buffers must flush on every
-message to keep it. [`eng/Generator/unimplemented.txt`](eng/Generator/unimplemented.txt) is empty,
+wgpu-native still panics on a null handle, a missing descriptor or an undefined enum value, and the panic aborts
+the process. The C# methods on handles check for these first and throw instead:
+
+| Mistake | Exception |
+|---|---|
+| a method called on a null handle (`default(WGPUDevice).GetQueue()`) | `InvalidOperationException` |
+| a null handle or descriptor where `webgpu.h` doesn't allow one (`device.CreateBuffer(null)`) | `ArgumentNullException` |
+| an enum value that isn't defined (`device.PushErrorScope((WGPUErrorFilter)7)`) | `ArgumentOutOfRangeException` |
+
+Parameters marked `WGPU_NULLABLE` and count + pointer arrays (which may be null when empty) aren't checked, and
+neither are feature names, so that asking about an unknown feature keeps answering false. Each check is one
+comparison. The raw `WGPU.wgpu*` functions don't check anything, as in C, and fields inside descriptors aren't
+checked either.
+
+A panic that still happens aborts the process. Once a logger is set (`WGPU.SetLogger`), it first receives the
+panic message and location at error level, e.g. "wgpu-native panicked at src\lib.rs:3830:18: invalid error
+filter" (patch 7); before, that went only to stderr. A logger that buffers must flush on every message to keep
+it. [`eng/Generator/unimplemented.txt`](eng/Generator/unimplemented.txt) is empty,
 so nothing is marked `[Obsolete("…aborts the process")]` any more. `tests/WGpuFury.Tests/FutureTests.cs`
 exercises each of the above.
 
