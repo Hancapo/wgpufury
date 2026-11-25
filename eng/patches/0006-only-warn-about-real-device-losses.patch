@@ -1,0 +1,38 @@
+From e181514efa99d7da2d8ef29d8c9d065a9b8bb3ce Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 16:55:14 -0300
+Subject: [PATCH] Only warn about real device losses without a lost callback
+
+Without a device-lost callback, wgpu-native logged a warning ("wgpu device
+lost ... Device was released") every time a device was released or
+destroyed. The default handler now only warns when the device was really
+lost (WGPUDeviceLostReason_Unknown).
+---
+ src/lib.rs | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib.rs b/src/lib.rs
+index d948bb3..067d348 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -540,11 +540,16 @@ const DEFAULT_UNCAPTURED_ERROR_HANDLER: UncapturedErrorCallback = UncapturedErro
+ 
+ unsafe extern "C" fn default_device_lost_handler(
+     _device: *const native::WGPUDevice,
+-    _reason: native::WGPUDeviceLostReason,
++    reason: native::WGPUDeviceLostReason,
+     message: native::WGPUStringView,
+     _userdata1: *mut ::std::os::raw::c_void,
+     _userdata2: *mut ::std::os::raw::c_void,
+ ) {
++    // Destroying or releasing a device, or failing to create one (reported to the request
++    // callback), is not a loss worth a warning.
++    if reason != native::WGPUDeviceLostReason_Unknown {
++        return;
++    }
+     let message = string_view_into_str(message).unwrap_or("");
+     log::warn!("wgpu device lost (no deviceLostCallbackInfo.callback set):\n{message}\n");
+ }
+-- 
+2.55.0.windows.3
+

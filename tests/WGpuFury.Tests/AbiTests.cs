@@ -11,13 +11,34 @@ namespace WGpuFury.Tests;
 [TestClass]
 public sealed class AbiTests
 {
+    /// <summary>Set by CI to the RID each leg is meant to test.</summary>
+    private static readonly string? s_expectedRid = Environment.GetEnvironmentVariable("WGPUFURY_EXPECTED_RID");
+
+    [TestMethod]
+    public void TestsRunAsTheExpectedRid()
+    {
+        if (s_expectedRid == null)
+        {
+            Assert.Inconclusive("WGPUFURY_EXPECTED_RID is not set (only CI sets it).");
+        }
+
+        Assert.AreEqual(s_expectedRid, RuntimeInformation.RuntimeIdentifier);
+    }
+
     [TestMethod]
     public void StructLayoutsMatchC()
     {
         string path = Path.Combine(AppContext.BaseDirectory, "abi", RuntimeInformation.RuntimeIdentifier + ".json");
         if (!File.Exists(path))
         {
-            Assert.Inconclusive($"No C layout dump for {RuntimeInformation.RuntimeIdentifier}; run eng/run-abi-probe.ps1 on that platform.");
+            // In CI every leg produces or has a dump, so a missing one is a failure there.
+            string message = $"No C layout dump for {RuntimeInformation.RuntimeIdentifier}; run eng/run-abi-probe.ps1 on that platform.";
+            if (s_expectedRid != null)
+            {
+                Assert.Fail(message);
+            }
+
+            Assert.Inconclusive(message);
         }
 
         using JsonDocument c = JsonDocument.Parse(File.ReadAllText(path));

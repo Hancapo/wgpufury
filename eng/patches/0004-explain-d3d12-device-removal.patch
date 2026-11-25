@@ -1,0 +1,88 @@
+From 42f56682b39a02ccdf2eb20e7969f7e6115b64ac Mon Sep 17 00:00:00 2001
+From: WGpuFury <wgpufury@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 16:35:43 -0300
+Subject: [PATCH] Say why Direct3D 12 removed a device in the device-lost
+ message
+
+wgpu reports every backend failure as "Device is lost", but Direct3D 12 keeps
+the reason (GetDeviceRemovedReason): removed, hung, reset, or a driver internal
+error. The device-lost closure now appends it, e.g. "Device is lost: Direct3D
+12 removed the device (DXGI_ERROR_DEVICE_HUNG): ... (0x887A0006)", so the
+callback says what happened instead of only the log.
+---
+ src/lib.rs | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib.rs b/src/lib.rs
+index 075e4ce..d948bb3 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1261,6 +1261,7 @@ pub unsafe extern "C" fn wgpuAdapterRequestDevice(
+             // `destroy` (Destroyed). It runs while wgpu-core holds its locks, so the callback
+             // is completed off this thread.
+             let lost_sink = Arc::downgrade(&device_impl.error_sink);
++            let removal_reason = removal_reason(context, device_id);
+             context.device_set_device_lost_closure(
+                 device_id,
+                 Box::new(move |reason, message| {
+@@ -1271,11 +1272,16 @@ pub unsafe extern "C" fn wgpuAdapterRequestDevice(
+                         wgt::DeviceLostReason::Destroyed => native::WGPUDeviceLostReason_Destroyed,
+                         wgt::DeviceLostReason::Unknown => native::WGPUDeviceLostReason_Unknown,
+                     };
+-                    let message = if message.is_empty() {
++                    let mut message = if message.is_empty() {
+                         "The device was lost".to_string()
+                     } else {
+                         message
+                     };
++                    if reason == native::WGPUDeviceLostReason_Unknown {
++                        if let Some(why) = removal_reason.as_ref().and_then(|why| why()) {
++                            message = format!("{message}: {why}");
++                        }
++                    }
+                     let lost = {
+                         let mut sink = sink.lock();
+                         let device = sink.device.as_ptr();
+@@ -3832,6 +3838,39 @@ pub unsafe extern "C-unwind" fn wgpuDeviceRelease(device: native::WGPUDevice) {
+ 
+ // Instance methods
+ 
++/// Describes why the backend removed a device, for the device-lost message; wgpu itself only says
++/// that the device is lost. Direct3D 12 keeps the reason (`GetDeviceRemovedReason`): removed, hung,
++/// reset or a driver internal error. `None` on other backends.
++type RemovalReason = Box<dyn Fn() -> Option<String> + Send>;
++
++#[cfg(windows)]
++fn removal_reason(context: &Context, device_id: id::DeviceId) -> Option<RemovalReason> {
++    struct AssertSend<T>(T);
++    // ID3D12Device is free-threaded.
++    unsafe impl<T> Send for AssertSend<T> {}
++
++    let hal_device = unsafe { context.device_as_hal::<hal::api::Dx12>(device_id) }?;
++    let raw = AssertSend(hal_device.raw_device().clone());
++    Some(Box::new(move || {
++        let raw = &raw;
++        let error = unsafe { raw.0.GetDeviceRemovedReason() }.err()?;
++        let name = match error.code().0 as u32 {
++            0x887A0001 => "DXGI_ERROR_INVALID_CALL",
++            0x887A0005 => "DXGI_ERROR_DEVICE_REMOVED",
++            0x887A0006 => "DXGI_ERROR_DEVICE_HUNG",
++            0x887A0007 => "DXGI_ERROR_DEVICE_RESET",
++            0x887A0020 => "DXGI_ERROR_DRIVER_INTERNAL_ERROR",
++            _ => "unknown reason",
++        };
++        Some(format!("Direct3D 12 removed the device ({name}): {error}"))
++    }))
++}
++
++#[cfg(not(windows))]
++fn removal_reason(_context: &Context, _device_id: id::DeviceId) -> Option<RemovalReason> {
++    None
++}
++
+ /// `wgpuInstanceCreateSurface` has no device to report to, so a failure is logged and returns NULL.
+ fn surface_creation_failed(cause: impl error::Error + 'static) -> native::WGPUSurface {
+     log::error!("wgpuInstanceCreateSurface: {}", format_error(&cause));
+-- 
+2.55.0.windows.3
+
