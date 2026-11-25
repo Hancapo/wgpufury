@@ -1,0 +1,92 @@
+name: Upstream
+
+# Weekly upkeep check. Has wgpu-native (a release for wgpu 30 or later, or else the head of the wgpu 30 port,
+# gfx-rs/wgpu-native#630) or wgpu (a release) moved past what eng/native.lock.json pins, and do eng/patches still
+# apply to it? The run fails when something moved, so GitHub notifies the repository's owner; the job summary says
+# what moved and which patches need rebasing. Nothing is built.
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays, 06:00 UTC
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/upstream.yml', 'eng/build-native.cs']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Find the newest upstream commits
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The newest non-prerelease by version, not by date: a 29.x backport can come out after 30.0.
+          newest_release() {
+            gh api "repos/$1/releases?per_page=100" --jq '.[] | select(.prerelease | not) | .tag_name' \
+              | grep -E '^v[0-9]' | sort -V | tail -n 1
+          }
+          commit_of() { gh api "repos/$1/commits/$2" --jq .sha; }
+
+          pinned_native=$(jq -r .source.commit eng/native.lock.json)
+          pinned_wgpu=$(jq -r .wgpuSource.commit eng/native.lock.json)
+
+          native_release=$(newest_release gfx-rs/wgpu-native)
+          read -r port_state port_merged port_head < <(gh api repos/gfx-rs/wgpu-native/pulls/630 --jq '"\(.state) \(.merged) \(.head.sha)"')
+          release_major=${native_release#v}
+          release_major=${release_major%%.*}
+          if (( release_major >= 30 )); then
+            native=$(commit_of gfx-rs/wgpu-native "$native_release")
+            native_from="release $native_release"
+          else
+            native=$port_head
+            native_from="head of #630, $port_state; newest release $native_release"
+          fi
+
+          wgpu_release=$(newest_release gfx-rs/wgpu)
+          wgpu=$(commit_of gfx-rs/wgpu "$wgpu_release")
+
+          state() { if [[ $1 == "$2" ]]; then echo current; else echo '**moved**'; fi; }
+          {
+            echo "## Upstream"
+            echo
+            echo "| | Pinned | Newest | |"
+            echo "|---|---|---|---|"
+            echo "| wgpu-native | \`${pinned_native:0:12}\` | \`${native:0:12}\` ($native_from) | $(state "$native" "$pinned_native") |"
+            echo "| wgpu | \`${pinned_wgpu:0:12}\` | \`${wgpu:0:12}\` (release $wgpu_release) | $(state "$wgpu" "$pinned_wgpu") |"
+            echo
+            if [[ $port_merged == true ]]; then
+              echo "gfx-rs/wgpu-native#630 is merged: a wgpu-native release for wgpu 30 should follow."
+              echo
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "native=$native" >> "$GITHUB_OUTPUT"
+          echo "wgpu=$wgpu" >> "$GITHUB_OUTPUT"
+          if [[ $native == "$pinned_native" && $wgpu == "$pinned_wgpu" ]]; then
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Do the patches apply to them?
+        if: steps.upstream.outputs.moved == 'true'
+        run: >-
+          dotnet run eng/build-native.cs --
+          --check-source=${{ steps.upstream.outputs.native }}
+          --check-wgpu=${{ steps.upstream.outputs.wgpu }}
+
+      - name: Ask for an update
+        if: ${{ !cancelled() && steps.upstream.outputs.moved == 'true' }}
+        run: |
+          echo "::error::wgpu-native or wgpu moved past eng/native.lock.json. The job summary lists which patches still apply; see \"Updating wgpu-native\" in the README."
+          exit 1
