@@ -70,7 +70,12 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <param name="features">
     /// This parameter is <c>ReturnedWithOwnership</c>.
     /// </param>
-    public void GetFeatures(WGPUSupportedFeatures* features) => WGPU.wgpuAdapterGetFeatures(this, features);
+    public void GetFeatures(WGPUSupportedFeatures* features)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        if (features == null) Check.ThrowNullArgument(nameof(features));
+        WGPU.wgpuAdapterGetFeatures(this, features);
+    }
 
     /// <summary>
     /// Calls <c>wgpuAdapterGetInfo</c>.
@@ -81,7 +86,12 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <returns>
     /// Indicates if there was an <c>OutStructChainError</c>.
     /// </returns>
-    public WGPUStatus GetInfo(WGPUAdapterInfo* info) => WGPU.wgpuAdapterGetInfo(this, info);
+    public WGPUStatus GetInfo(WGPUAdapterInfo* info)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        if (info == null) Check.ThrowNullArgument(nameof(info));
+        return WGPU.wgpuAdapterGetInfo(this, info);
+    }
 
     /// <summary>
     /// Calls <c>wgpuAdapterGetLimits</c>.
@@ -89,23 +99,37 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <returns>
     /// Indicates if there was an <c>OutStructChainError</c>.
     /// </returns>
-    public WGPUStatus GetLimits(WGPULimits* limits) => WGPU.wgpuAdapterGetLimits(this, limits);
+    public WGPUStatus GetLimits(WGPULimits* limits)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        if (limits == null) Check.ThrowNullArgument(nameof(limits));
+        return WGPU.wgpuAdapterGetLimits(this, limits);
+    }
 
     /// <summary>
     /// Calls <c>wgpuAdapterHasFeature</c>.
     /// </summary>
-    public WGPUBool HasFeature(WGPUFeatureName feature) => WGPU.wgpuAdapterHasFeature(this, feature);
+    public WGPUBool HasFeature(WGPUFeatureName feature)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        return WGPU.wgpuAdapterHasFeature(this, feature);
+    }
 
     /// <summary>
     /// Calls <c>wgpuAdapterRequestDevice</c>.
     /// </summary>
-    public WGPUFuture RequestDevice(WGPUDeviceDescriptor* descriptor, WGPURequestDeviceCallbackInfo callbackInfo) => WGPU.wgpuAdapterRequestDevice(this, descriptor, callbackInfo);
+    public WGPUFuture RequestDevice(WGPUDeviceDescriptor* descriptor, WGPURequestDeviceCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        return WGPU.wgpuAdapterRequestDevice(this, descriptor, callbackInfo);
+    }
 
     /// <summary>
     /// Calls <c>wgpuAdapterRequestDevice</c>.
     /// </summary>
     public WGPUFuture RequestDevice(in WGPUDeviceDescriptor descriptor, WGPURequestDeviceCallbackInfo callbackInfo)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
         fixed (WGPUDeviceDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuAdapterRequestDevice(this, __descriptor, callbackInfo);
@@ -115,12 +139,20 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <summary>
     /// Calls <c>wgpuAdapterAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuAdapterAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        WGPU.wgpuAdapterAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuAdapterRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuAdapterRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        WGPU.wgpuAdapterRelease(this);
+    }
 
     /// <summary>
     /// Query the actual texture format capabilities supported by this adapter.
@@ -130,14 +162,25 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <para/>
     /// Calls <c>wgpuAdapterGetTextureFormatCapabilities</c>.
     /// </summary>
-    public WGPUStatus GetTextureFormatCapabilities(WGPUTextureFormat format, WGPUNativeTextureFormatCapabilities* capabilities) => WGPU.wgpuAdapterGetTextureFormatCapabilities(this, format, capabilities);
+    public WGPUStatus GetTextureFormatCapabilities(WGPUTextureFormat format, WGPUNativeTextureFormatCapabilities* capabilities)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        if (!WGPUEnumChecks.IsDefined(format)) Check.ThrowUndefined(nameof(format), format);
+        if (capabilities == null) Check.ThrowNullArgument(nameof(capabilities));
+        return WGPU.wgpuAdapterGetTextureFormatCapabilities(this, format, capabilities);
+    }
 
     /// <summary>
     /// Returns true if this surface can be presented by this adapter.
     /// <para/>
     /// Calls <c>wgpuAdapterIsSurfaceSupported</c>.
     /// </summary>
-    public WGPUBool IsSurfaceSupported(WGPUSurface surface) => WGPU.wgpuAdapterIsSurfaceSupported(this, surface);
+    public WGPUBool IsSurfaceSupported(WGPUSurface surface)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        if (surface.IsNull) Check.ThrowNullArgument(nameof(surface));
+        return WGPU.wgpuAdapterIsSurfaceSupported(this, surface);
+    }
 
     /// <summary>
     /// Returns the downlevel capabilities of this adapter.
@@ -147,7 +190,11 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <para/>
     /// Calls <c>wgpuAdapterGetDownlevelCapabilities</c>.
     /// </summary>
-    public WGPUDownlevelCapabilities GetDownlevelCapabilities() => WGPU.wgpuAdapterGetDownlevelCapabilities(this);
+    public WGPUDownlevelCapabilities GetDownlevelCapabilities()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        return WGPU.wgpuAdapterGetDownlevelCapabilities(this);
+    }
 
     /// <summary>
     /// Returns a monotonically increasing timestamp in nanoseconds for the current
@@ -155,7 +202,11 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <para/>
     /// Calls <c>wgpuAdapterGetPresentationTimestamp</c>.
     /// </summary>
-    public WGPUPresentationTimestamp GetPresentationTimestamp() => WGPU.wgpuAdapterGetPresentationTimestamp(this);
+    public WGPUPresentationTimestamp GetPresentationTimestamp()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        return WGPU.wgpuAdapterGetPresentationTimestamp(this);
+    }
 
     /// <summary>
     /// Returns the number of supported cooperative matrix configurations on this adapter.
@@ -165,7 +216,12 @@ public readonly unsafe partial struct WGPUAdapter : IEquatable<WGPUAdapter>, IDi
     /// <para/>
     /// Calls <c>wgpuAdapterGetCooperativeMatrixProperties</c>.
     /// </summary>
-    public nuint GetCooperativeMatrixProperties(WGPUCooperativeMatrixProperties* propertiesOut, nuint propertiesCapacity) => WGPU.wgpuAdapterGetCooperativeMatrixProperties(this, propertiesOut, propertiesCapacity);
+    public nuint GetCooperativeMatrixProperties(WGPUCooperativeMatrixProperties* propertiesOut, nuint propertiesCapacity)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUAdapter");
+        if (propertiesOut == null) Check.ThrowNullArgument(nameof(propertiesOut));
+        return WGPU.wgpuAdapterGetCooperativeMatrixProperties(this, propertiesOut, propertiesCapacity);
+    }
 
 }
 
@@ -223,13 +279,18 @@ public readonly unsafe partial struct WGPUBindGroup : IEquatable<WGPUBindGroup>,
     /// <summary>
     /// Calls <c>wgpuBindGroupSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuBindGroupSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroup");
+        WGPU.wgpuBindGroupSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBindGroupSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroup");
         fixed (byte* __label = label)
         {
             WGPU.wgpuBindGroupSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -241,6 +302,7 @@ public readonly unsafe partial struct WGPUBindGroup : IEquatable<WGPUBindGroup>,
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroup");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuBindGroupSetLabel(this, __label.View);
     }
@@ -248,12 +310,20 @@ public readonly unsafe partial struct WGPUBindGroup : IEquatable<WGPUBindGroup>,
     /// <summary>
     /// Calls <c>wgpuBindGroupAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuBindGroupAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroup");
+        WGPU.wgpuBindGroupAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBindGroupRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuBindGroupRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroup");
+        WGPU.wgpuBindGroupRelease(this);
+    }
 
 }
 
@@ -311,13 +381,18 @@ public readonly unsafe partial struct WGPUBindGroupLayout : IEquatable<WGPUBindG
     /// <summary>
     /// Calls <c>wgpuBindGroupLayoutSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuBindGroupLayoutSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroupLayout");
+        WGPU.wgpuBindGroupLayoutSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBindGroupLayoutSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroupLayout");
         fixed (byte* __label = label)
         {
             WGPU.wgpuBindGroupLayoutSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -329,6 +404,7 @@ public readonly unsafe partial struct WGPUBindGroupLayout : IEquatable<WGPUBindG
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroupLayout");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuBindGroupLayoutSetLabel(this, __label.View);
     }
@@ -336,12 +412,20 @@ public readonly unsafe partial struct WGPUBindGroupLayout : IEquatable<WGPUBindG
     /// <summary>
     /// Calls <c>wgpuBindGroupLayoutAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuBindGroupLayoutAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroupLayout");
+        WGPU.wgpuBindGroupLayoutAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBindGroupLayoutRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuBindGroupLayoutRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBindGroupLayout");
+        WGPU.wgpuBindGroupLayoutRelease(this);
+    }
 
 }
 
@@ -399,7 +483,11 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// <summary>
     /// Calls <c>wgpuBufferDestroy</c>.
     /// </summary>
-    public void Destroy() => WGPU.wgpuBufferDestroy(this);
+    public void Destroy()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        WGPU.wgpuBufferDestroy(this);
+    }
 
     /// <summary>
     /// Returns a const pointer to beginning of the mapped range.
@@ -420,7 +508,11 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// If this is <c>WGPU_WHOLE_MAP_SIZE</c>, it defaults to <c>buffer.size - offset</c>.
     /// The returned pointer is valid for exactly this many bytes.
     /// </param>
-    public void* GetConstMappedRange(nuint offset, nuint size) => WGPU.wgpuBufferGetConstMappedRange(this, offset, size);
+    public void* GetConstMappedRange(nuint offset, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferGetConstMappedRange(this, offset, size);
+    }
 
     /// <summary>
     /// Returns a mutable pointer to beginning of the mapped range.
@@ -440,22 +532,38 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// If this is <c>WGPU_WHOLE_MAP_SIZE</c>, it defaults to <c>buffer.size - offset</c>.
     /// The returned pointer is valid for exactly this many bytes.
     /// </param>
-    public void* GetMappedRange(nuint offset, nuint size) => WGPU.wgpuBufferGetMappedRange(this, offset, size);
+    public void* GetMappedRange(nuint offset, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferGetMappedRange(this, offset, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBufferGetMapState</c>.
     /// </summary>
-    public WGPUBufferMapState GetMapState() => WGPU.wgpuBufferGetMapState(this);
+    public WGPUBufferMapState GetMapState()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferGetMapState(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBufferGetSize</c>.
     /// </summary>
-    public ulong GetSize() => WGPU.wgpuBufferGetSize(this);
+    public ulong GetSize()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferGetSize(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBufferGetUsage</c>.
     /// </summary>
-    public WGPUBufferUsage GetUsage() => WGPU.wgpuBufferGetUsage(this);
+    public WGPUBufferUsage GetUsage()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferGetUsage(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBufferMapAsync</c>.
@@ -470,7 +578,11 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// Byte size of the region to map.
     /// If this is <c>WGPU_WHOLE_MAP_SIZE</c>, it defaults to <c>buffer.size - offset</c>.
     /// </param>
-    public WGPUFuture MapAsync(WGPUMapMode mode, nuint offset, nuint size, WGPUBufferMapCallbackInfo callbackInfo) => WGPU.wgpuBufferMapAsync(this, mode, offset, size, callbackInfo);
+    public WGPUFuture MapAsync(WGPUMapMode mode, nuint offset, nuint size, WGPUBufferMapCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferMapAsync(this, mode, offset, size, callbackInfo);
+    }
 
     /// <summary>
     /// Copies a range of data from the buffer mapping into the provided destination pointer.
@@ -494,7 +606,11 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// <returns>
     /// <c>WGPUStatus_Error</c> if the copy did not occur.
     /// </returns>
-    public WGPUStatus ReadMappedRange(nuint offset, void* data, nuint size) => WGPU.wgpuBufferReadMappedRange(this, offset, data, size);
+    public WGPUStatus ReadMappedRange(nuint offset, void* data, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferReadMappedRange(this, offset, data, size);
+    }
 
     /// <summary>
     /// Copies a range of data from the buffer mapping into the provided destination pointer.
@@ -516,6 +632,7 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// </returns>
     public WGPUStatus ReadMappedRange<TData>(nuint offset, Span<TData> data) where TData : unmanaged
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
         fixed (TData* __data = data)
         {
             return WGPU.wgpuBufferReadMappedRange(this, offset, __data, (nuint)data.Length * (nuint)sizeof(TData));
@@ -525,13 +642,18 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// <summary>
     /// Calls <c>wgpuBufferSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuBufferSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        WGPU.wgpuBufferSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBufferSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
         fixed (byte* __label = label)
         {
             WGPU.wgpuBufferSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -543,6 +665,7 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuBufferSetLabel(this, __label.View);
     }
@@ -550,7 +673,11 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// <summary>
     /// Calls <c>wgpuBufferUnmap</c>.
     /// </summary>
-    public void Unmap() => WGPU.wgpuBufferUnmap(this);
+    public void Unmap()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        WGPU.wgpuBufferUnmap(this);
+    }
 
     /// <summary>
     /// Copies a range of data from the provided source pointer into the buffer mapping.
@@ -574,7 +701,11 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// <returns>
     /// <c>WGPUStatus_Error</c> if the copy did not occur.
     /// </returns>
-    public WGPUStatus WriteMappedRange(nuint offset, void* data, nuint size) => WGPU.wgpuBufferWriteMappedRange(this, offset, data, size);
+    public WGPUStatus WriteMappedRange(nuint offset, void* data, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        return WGPU.wgpuBufferWriteMappedRange(this, offset, data, size);
+    }
 
     /// <summary>
     /// Copies a range of data from the provided source pointer into the buffer mapping.
@@ -596,6 +727,7 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// </returns>
     public WGPUStatus WriteMappedRange<TData>(nuint offset, ReadOnlySpan<TData> data) where TData : unmanaged
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
         fixed (TData* __data = data)
         {
             return WGPU.wgpuBufferWriteMappedRange(this, offset, __data, (nuint)data.Length * (nuint)sizeof(TData));
@@ -605,12 +737,20 @@ public readonly unsafe partial struct WGPUBuffer : IEquatable<WGPUBuffer>, IDisp
     /// <summary>
     /// Calls <c>wgpuBufferAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuBufferAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        WGPU.wgpuBufferAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBufferRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuBufferRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBuffer");
+        WGPU.wgpuBufferRelease(this);
+    }
 
 }
 
@@ -668,13 +808,18 @@ public readonly unsafe partial struct WGPUCommandBuffer : IEquatable<WGPUCommand
     /// <summary>
     /// Calls <c>wgpuCommandBufferSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuCommandBufferSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandBuffer");
+        WGPU.wgpuCommandBufferSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandBufferSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandBuffer");
         fixed (byte* __label = label)
         {
             WGPU.wgpuCommandBufferSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -686,6 +831,7 @@ public readonly unsafe partial struct WGPUCommandBuffer : IEquatable<WGPUCommand
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandBuffer");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuCommandBufferSetLabel(this, __label.View);
     }
@@ -693,12 +839,20 @@ public readonly unsafe partial struct WGPUCommandBuffer : IEquatable<WGPUCommand
     /// <summary>
     /// Calls <c>wgpuCommandBufferAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuCommandBufferAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandBuffer");
+        WGPU.wgpuCommandBufferAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandBufferRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuCommandBufferRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandBuffer");
+        WGPU.wgpuCommandBufferRelease(this);
+    }
 
 }
 
@@ -759,7 +913,11 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUComputePassEncoder BeginComputePass(WGPUComputePassDescriptor* descriptor = null) => WGPU.wgpuCommandEncoderBeginComputePass(this, descriptor);
+    public WGPUComputePassEncoder BeginComputePass(WGPUComputePassDescriptor* descriptor = null)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        return WGPU.wgpuCommandEncoderBeginComputePass(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderBeginComputePass</c>.
@@ -769,6 +927,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </returns>
     public WGPUComputePassEncoder BeginComputePass(in WGPUComputePassDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPUComputePassDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuCommandEncoderBeginComputePass(this, __descriptor);
@@ -781,7 +940,12 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPURenderPassEncoder BeginRenderPass(WGPURenderPassDescriptor* descriptor) => WGPU.wgpuCommandEncoderBeginRenderPass(this, descriptor);
+    public WGPURenderPassEncoder BeginRenderPass(WGPURenderPassDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuCommandEncoderBeginRenderPass(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderBeginRenderPass</c>.
@@ -791,6 +955,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </returns>
     public WGPURenderPassEncoder BeginRenderPass(in WGPURenderPassDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPURenderPassDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuCommandEncoderBeginRenderPass(this, __descriptor);
@@ -800,23 +965,42 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <summary>
     /// Calls <c>wgpuCommandEncoderClearBuffer</c>.
     /// </summary>
-    public void ClearBuffer(WGPUBuffer buffer, ulong offset, ulong size) => WGPU.wgpuCommandEncoderClearBuffer(this, buffer, offset, size);
+    public void ClearBuffer(WGPUBuffer buffer, ulong offset, ulong size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        WGPU.wgpuCommandEncoderClearBuffer(this, buffer, offset, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderCopyBufferToBuffer</c>.
     /// </summary>
-    public void CopyBufferToBuffer(WGPUBuffer source, ulong sourceOffset, WGPUBuffer destination, ulong destinationOffset, ulong size) => WGPU.wgpuCommandEncoderCopyBufferToBuffer(this, source, sourceOffset, destination, destinationOffset, size);
+    public void CopyBufferToBuffer(WGPUBuffer source, ulong sourceOffset, WGPUBuffer destination, ulong destinationOffset, ulong size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (source.IsNull) Check.ThrowNullArgument(nameof(source));
+        if (destination.IsNull) Check.ThrowNullArgument(nameof(destination));
+        WGPU.wgpuCommandEncoderCopyBufferToBuffer(this, source, sourceOffset, destination, destinationOffset, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderCopyBufferToTexture</c>.
     /// </summary>
-    public void CopyBufferToTexture(WGPUTexelCopyBufferInfo* source, WGPUTexelCopyTextureInfo* destination, WGPUExtent3D* copySize) => WGPU.wgpuCommandEncoderCopyBufferToTexture(this, source, destination, copySize);
+    public void CopyBufferToTexture(WGPUTexelCopyBufferInfo* source, WGPUTexelCopyTextureInfo* destination, WGPUExtent3D* copySize)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (source == null) Check.ThrowNullArgument(nameof(source));
+        if (destination == null) Check.ThrowNullArgument(nameof(destination));
+        if (copySize == null) Check.ThrowNullArgument(nameof(copySize));
+        WGPU.wgpuCommandEncoderCopyBufferToTexture(this, source, destination, copySize);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderCopyBufferToTexture</c>.
     /// </summary>
     public void CopyBufferToTexture(in WGPUTexelCopyBufferInfo source, in WGPUTexelCopyTextureInfo destination, in WGPUExtent3D copySize)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPUTexelCopyBufferInfo* __source = &source)
         fixed (WGPUTexelCopyTextureInfo* __destination = &destination)
         fixed (WGPUExtent3D* __copySize = &copySize)
@@ -828,13 +1012,21 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <summary>
     /// Calls <c>wgpuCommandEncoderCopyTextureToBuffer</c>.
     /// </summary>
-    public void CopyTextureToBuffer(WGPUTexelCopyTextureInfo* source, WGPUTexelCopyBufferInfo* destination, WGPUExtent3D* copySize) => WGPU.wgpuCommandEncoderCopyTextureToBuffer(this, source, destination, copySize);
+    public void CopyTextureToBuffer(WGPUTexelCopyTextureInfo* source, WGPUTexelCopyBufferInfo* destination, WGPUExtent3D* copySize)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (source == null) Check.ThrowNullArgument(nameof(source));
+        if (destination == null) Check.ThrowNullArgument(nameof(destination));
+        if (copySize == null) Check.ThrowNullArgument(nameof(copySize));
+        WGPU.wgpuCommandEncoderCopyTextureToBuffer(this, source, destination, copySize);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderCopyTextureToBuffer</c>.
     /// </summary>
     public void CopyTextureToBuffer(in WGPUTexelCopyTextureInfo source, in WGPUTexelCopyBufferInfo destination, in WGPUExtent3D copySize)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPUTexelCopyTextureInfo* __source = &source)
         fixed (WGPUTexelCopyBufferInfo* __destination = &destination)
         fixed (WGPUExtent3D* __copySize = &copySize)
@@ -846,13 +1038,21 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <summary>
     /// Calls <c>wgpuCommandEncoderCopyTextureToTexture</c>.
     /// </summary>
-    public void CopyTextureToTexture(WGPUTexelCopyTextureInfo* source, WGPUTexelCopyTextureInfo* destination, WGPUExtent3D* copySize) => WGPU.wgpuCommandEncoderCopyTextureToTexture(this, source, destination, copySize);
+    public void CopyTextureToTexture(WGPUTexelCopyTextureInfo* source, WGPUTexelCopyTextureInfo* destination, WGPUExtent3D* copySize)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (source == null) Check.ThrowNullArgument(nameof(source));
+        if (destination == null) Check.ThrowNullArgument(nameof(destination));
+        if (copySize == null) Check.ThrowNullArgument(nameof(copySize));
+        WGPU.wgpuCommandEncoderCopyTextureToTexture(this, source, destination, copySize);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderCopyTextureToTexture</c>.
     /// </summary>
     public void CopyTextureToTexture(in WGPUTexelCopyTextureInfo source, in WGPUTexelCopyTextureInfo destination, in WGPUExtent3D copySize)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPUTexelCopyTextureInfo* __source = &source)
         fixed (WGPUTexelCopyTextureInfo* __destination = &destination)
         fixed (WGPUExtent3D* __copySize = &copySize)
@@ -867,7 +1067,11 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUCommandBuffer Finish(WGPUCommandBufferDescriptor* descriptor = null) => WGPU.wgpuCommandEncoderFinish(this, descriptor);
+    public WGPUCommandBuffer Finish(WGPUCommandBufferDescriptor* descriptor = null)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        return WGPU.wgpuCommandEncoderFinish(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderFinish</c>.
@@ -877,6 +1081,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </returns>
     public WGPUCommandBuffer Finish(in WGPUCommandBufferDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPUCommandBufferDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuCommandEncoderFinish(this, __descriptor);
@@ -886,13 +1091,18 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <summary>
     /// Calls <c>wgpuCommandEncoderInsertDebugMarker</c>.
     /// </summary>
-    public void InsertDebugMarker(WGPUStringView markerLabel) => WGPU.wgpuCommandEncoderInsertDebugMarker(this, markerLabel);
+    public void InsertDebugMarker(WGPUStringView markerLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        WGPU.wgpuCommandEncoderInsertDebugMarker(this, markerLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderInsertDebugMarker</c>.
     /// </summary>
     public void InsertDebugMarker(ReadOnlySpan<byte> markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (byte* __markerLabel = markerLabel)
         {
             WGPU.wgpuCommandEncoderInsertDebugMarker(this, new WGPUStringView(__markerLabel, (nuint)markerLabel.Length));
@@ -904,6 +1114,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </summary>
     public void InsertDebugMarker(string? markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         using Utf8Scratch __markerLabel = new(markerLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuCommandEncoderInsertDebugMarker(this, __markerLabel.View);
     }
@@ -911,18 +1122,27 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <summary>
     /// Calls <c>wgpuCommandEncoderPopDebugGroup</c>.
     /// </summary>
-    public void PopDebugGroup() => WGPU.wgpuCommandEncoderPopDebugGroup(this);
+    public void PopDebugGroup()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        WGPU.wgpuCommandEncoderPopDebugGroup(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderPushDebugGroup</c>.
     /// </summary>
-    public void PushDebugGroup(WGPUStringView groupLabel) => WGPU.wgpuCommandEncoderPushDebugGroup(this, groupLabel);
+    public void PushDebugGroup(WGPUStringView groupLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        WGPU.wgpuCommandEncoderPushDebugGroup(this, groupLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderPushDebugGroup</c>.
     /// </summary>
     public void PushDebugGroup(ReadOnlySpan<byte> groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (byte* __groupLabel = groupLabel)
         {
             WGPU.wgpuCommandEncoderPushDebugGroup(this, new WGPUStringView(__groupLabel, (nuint)groupLabel.Length));
@@ -934,6 +1154,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </summary>
     public void PushDebugGroup(string? groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         using Utf8Scratch __groupLabel = new(groupLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuCommandEncoderPushDebugGroup(this, __groupLabel.View);
     }
@@ -941,18 +1162,29 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <summary>
     /// Calls <c>wgpuCommandEncoderResolveQuerySet</c>.
     /// </summary>
-    public void ResolveQuerySet(WGPUQuerySet querySet, uint firstQuery, uint queryCount, WGPUBuffer destination, ulong destinationOffset) => WGPU.wgpuCommandEncoderResolveQuerySet(this, querySet, firstQuery, queryCount, destination, destinationOffset);
+    public void ResolveQuerySet(WGPUQuerySet querySet, uint firstQuery, uint queryCount, WGPUBuffer destination, ulong destinationOffset)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (querySet.IsNull) Check.ThrowNullArgument(nameof(querySet));
+        if (destination.IsNull) Check.ThrowNullArgument(nameof(destination));
+        WGPU.wgpuCommandEncoderResolveQuerySet(this, querySet, firstQuery, queryCount, destination, destinationOffset);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuCommandEncoderSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        WGPU.wgpuCommandEncoderSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (byte* __label = label)
         {
             WGPU.wgpuCommandEncoderSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -964,6 +1196,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuCommandEncoderSetLabel(this, __label.View);
     }
@@ -971,28 +1204,49 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <summary>
     /// Calls <c>wgpuCommandEncoderWriteTimestamp</c>.
     /// </summary>
-    public void WriteTimestamp(WGPUQuerySet querySet, uint queryIndex) => WGPU.wgpuCommandEncoderWriteTimestamp(this, querySet, queryIndex);
+    public void WriteTimestamp(WGPUQuerySet querySet, uint queryIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (querySet.IsNull) Check.ThrowNullArgument(nameof(querySet));
+        WGPU.wgpuCommandEncoderWriteTimestamp(this, querySet, queryIndex);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuCommandEncoderAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        WGPU.wgpuCommandEncoderAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuCommandEncoderRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        WGPU.wgpuCommandEncoderRelease(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderClearTexture</c>.
     /// </summary>
-    public void ClearTexture(WGPUTexture texture, WGPUImageSubresourceRange* range) => WGPU.wgpuCommandEncoderClearTexture(this, texture, range);
+    public void ClearTexture(WGPUTexture texture, WGPUImageSubresourceRange* range)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (texture.IsNull) Check.ThrowNullArgument(nameof(texture));
+        if (range == null) Check.ThrowNullArgument(nameof(range));
+        WGPU.wgpuCommandEncoderClearTexture(this, texture, range);
+    }
 
     /// <summary>
     /// Calls <c>wgpuCommandEncoderClearTexture</c>.
     /// </summary>
     public void ClearTexture(WGPUTexture texture, in WGPUImageSubresourceRange range)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (texture.IsNull) Check.ThrowNullArgument(nameof(texture));
         fixed (WGPUImageSubresourceRange* __range = &range)
         {
             WGPU.wgpuCommandEncoderClearTexture(this, texture, __range);
@@ -1004,7 +1258,12 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <para/>
     /// Calls <c>wgpuCommandEncoderBuildAccelerationStructures</c>.
     /// </summary>
-    public void BuildAccelerationStructures(nuint blasEntryCount, WGPUBlasBuildEntry* blasEntries, nuint tlasPackageCount, WGPUTlasPackage* tlasPackages) => WGPU.wgpuCommandEncoderBuildAccelerationStructures(this, blasEntryCount, blasEntries, tlasPackageCount, tlasPackages);
+    public void BuildAccelerationStructures(nuint blasEntryCount, WGPUBlasBuildEntry* blasEntries, nuint tlasPackageCount, WGPUTlasPackage* tlasPackages)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        if (blasEntries == null) Check.ThrowNullArgument(nameof(blasEntries));
+        WGPU.wgpuCommandEncoderBuildAccelerationStructures(this, blasEntryCount, blasEntries, tlasPackageCount, tlasPackages);
+    }
 
     /// <summary>
     /// Build acceleration structures on the command encoder.
@@ -1013,6 +1272,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </summary>
     public void BuildAccelerationStructures(nuint blasEntryCount, in WGPUBlasBuildEntry blasEntries, ReadOnlySpan<WGPUTlasPackage> tlasPackages)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPUBlasBuildEntry* __blasEntries = &blasEntries)
         fixed (WGPUTlasPackage* __tlasPackages = tlasPackages)
         {
@@ -1026,7 +1286,11 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// <para/>
     /// Calls <c>wgpuCommandEncoderMarkAccelerationStructuresBuilt</c>.
     /// </summary>
-    public void MarkAccelerationStructuresBuilt(nuint blasCount, WGPUBlas* blases, nuint tlasCount, WGPUTlas* tlases) => WGPU.wgpuCommandEncoderMarkAccelerationStructuresBuilt(this, blasCount, blases, tlasCount, tlases);
+    public void MarkAccelerationStructuresBuilt(nuint blasCount, WGPUBlas* blases, nuint tlasCount, WGPUTlas* tlases)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
+        WGPU.wgpuCommandEncoderMarkAccelerationStructuresBuilt(this, blasCount, blases, tlasCount, tlases);
+    }
 
     /// <summary>
     /// Mark acceleration structures as already built (for external builds).
@@ -1036,6 +1300,7 @@ public readonly unsafe partial struct WGPUCommandEncoder : IEquatable<WGPUComman
     /// </summary>
     public void MarkAccelerationStructuresBuilt(ReadOnlySpan<WGPUBlas> blases, ReadOnlySpan<WGPUTlas> tlases)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUCommandEncoder");
         fixed (WGPUBlas* __blases = blases)
         fixed (WGPUTlas* __tlases = tlases)
         {
@@ -1099,28 +1364,46 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderDispatchWorkgroups</c>.
     /// </summary>
-    public void DispatchWorkgroups(uint workgroupCountX, uint workgroupCountY, uint workgroupCountZ) => WGPU.wgpuComputePassEncoderDispatchWorkgroups(this, workgroupCountX, workgroupCountY, workgroupCountZ);
+    public void DispatchWorkgroups(uint workgroupCountX, uint workgroupCountY, uint workgroupCountZ)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderDispatchWorkgroups(this, workgroupCountX, workgroupCountY, workgroupCountZ);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderDispatchWorkgroupsIndirect</c>.
     /// </summary>
-    public void DispatchWorkgroupsIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset) => WGPU.wgpuComputePassEncoderDispatchWorkgroupsIndirect(this, indirectBuffer, indirectOffset);
+    public void DispatchWorkgroupsIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        if (indirectBuffer.IsNull) Check.ThrowNullArgument(nameof(indirectBuffer));
+        WGPU.wgpuComputePassEncoderDispatchWorkgroupsIndirect(this, indirectBuffer, indirectOffset);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderEnd</c>.
     /// </summary>
-    public void End() => WGPU.wgpuComputePassEncoderEnd(this);
+    public void End()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderEnd(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderInsertDebugMarker</c>.
     /// </summary>
-    public void InsertDebugMarker(WGPUStringView markerLabel) => WGPU.wgpuComputePassEncoderInsertDebugMarker(this, markerLabel);
+    public void InsertDebugMarker(WGPUStringView markerLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderInsertDebugMarker(this, markerLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderInsertDebugMarker</c>.
     /// </summary>
     public void InsertDebugMarker(ReadOnlySpan<byte> markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         fixed (byte* __markerLabel = markerLabel)
         {
             WGPU.wgpuComputePassEncoderInsertDebugMarker(this, new WGPUStringView(__markerLabel, (nuint)markerLabel.Length));
@@ -1132,6 +1415,7 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// </summary>
     public void InsertDebugMarker(string? markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         using Utf8Scratch __markerLabel = new(markerLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuComputePassEncoderInsertDebugMarker(this, __markerLabel.View);
     }
@@ -1139,18 +1423,27 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderPopDebugGroup</c>.
     /// </summary>
-    public void PopDebugGroup() => WGPU.wgpuComputePassEncoderPopDebugGroup(this);
+    public void PopDebugGroup()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderPopDebugGroup(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderPushDebugGroup</c>.
     /// </summary>
-    public void PushDebugGroup(WGPUStringView groupLabel) => WGPU.wgpuComputePassEncoderPushDebugGroup(this, groupLabel);
+    public void PushDebugGroup(WGPUStringView groupLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderPushDebugGroup(this, groupLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderPushDebugGroup</c>.
     /// </summary>
     public void PushDebugGroup(ReadOnlySpan<byte> groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         fixed (byte* __groupLabel = groupLabel)
         {
             WGPU.wgpuComputePassEncoderPushDebugGroup(this, new WGPUStringView(__groupLabel, (nuint)groupLabel.Length));
@@ -1162,6 +1455,7 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// </summary>
     public void PushDebugGroup(string? groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         using Utf8Scratch __groupLabel = new(groupLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuComputePassEncoderPushDebugGroup(this, __groupLabel.View);
     }
@@ -1169,13 +1463,18 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderSetBindGroup</c>.
     /// </summary>
-    public void SetBindGroup(uint groupIndex, WGPUBindGroup group, nuint dynamicOffsetCount, uint* dynamicOffsets) => WGPU.wgpuComputePassEncoderSetBindGroup(this, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
+    public void SetBindGroup(uint groupIndex, WGPUBindGroup group, nuint dynamicOffsetCount, uint* dynamicOffsets)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderSetBindGroup(this, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderSetBindGroup</c>.
     /// </summary>
     public void SetBindGroup(uint groupIndex, WGPUBindGroup group, ReadOnlySpan<uint> dynamicOffsets)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         fixed (uint* __dynamicOffsets = dynamicOffsets)
         {
             WGPU.wgpuComputePassEncoderSetBindGroup(this, groupIndex, group, (nuint)dynamicOffsets.Length, __dynamicOffsets);
@@ -1185,13 +1484,18 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderSetImmediates</c>.
     /// </summary>
-    public void SetImmediates(uint offset, void* data, nuint size) => WGPU.wgpuComputePassEncoderSetImmediates(this, offset, data, size);
+    public void SetImmediates(uint offset, void* data, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderSetImmediates(this, offset, data, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderSetImmediates</c>.
     /// </summary>
     public void SetImmediates<TData>(uint offset, ReadOnlySpan<TData> data) where TData : unmanaged
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         fixed (TData* __data = data)
         {
             WGPU.wgpuComputePassEncoderSetImmediates(this, offset, __data, (nuint)data.Length * (nuint)sizeof(TData));
@@ -1201,13 +1505,18 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuComputePassEncoderSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         fixed (byte* __label = label)
         {
             WGPU.wgpuComputePassEncoderSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -1219,6 +1528,7 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuComputePassEncoderSetLabel(this, __label.View);
     }
@@ -1226,32 +1536,59 @@ public readonly unsafe partial struct WGPUComputePassEncoder : IEquatable<WGPUCo
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderSetPipeline</c>.
     /// </summary>
-    public void SetPipeline(WGPUComputePipeline pipeline) => WGPU.wgpuComputePassEncoderSetPipeline(this, pipeline);
+    public void SetPipeline(WGPUComputePipeline pipeline)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        if (pipeline.IsNull) Check.ThrowNullArgument(nameof(pipeline));
+        WGPU.wgpuComputePassEncoderSetPipeline(this, pipeline);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuComputePassEncoderAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuComputePassEncoderRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderRelease(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderBeginPipelineStatisticsQuery</c>.
     /// </summary>
-    public void BeginPipelineStatisticsQuery(WGPUQuerySet querySet, uint queryIndex) => WGPU.wgpuComputePassEncoderBeginPipelineStatisticsQuery(this, querySet, queryIndex);
+    public void BeginPipelineStatisticsQuery(WGPUQuerySet querySet, uint queryIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        if (querySet.IsNull) Check.ThrowNullArgument(nameof(querySet));
+        WGPU.wgpuComputePassEncoderBeginPipelineStatisticsQuery(this, querySet, queryIndex);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderEndPipelineStatisticsQuery</c>.
     /// </summary>
-    public void EndPipelineStatisticsQuery() => WGPU.wgpuComputePassEncoderEndPipelineStatisticsQuery(this);
+    public void EndPipelineStatisticsQuery()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        WGPU.wgpuComputePassEncoderEndPipelineStatisticsQuery(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePassEncoderWriteTimestamp</c>.
     /// </summary>
-    public void WriteTimestamp(WGPUQuerySet querySet, uint queryIndex) => WGPU.wgpuComputePassEncoderWriteTimestamp(this, querySet, queryIndex);
+    public void WriteTimestamp(WGPUQuerySet querySet, uint queryIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePassEncoder");
+        if (querySet.IsNull) Check.ThrowNullArgument(nameof(querySet));
+        WGPU.wgpuComputePassEncoderWriteTimestamp(this, querySet, queryIndex);
+    }
 
 }
 
@@ -1312,18 +1649,27 @@ public readonly unsafe partial struct WGPUComputePipeline : IEquatable<WGPUCompu
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUBindGroupLayout GetBindGroupLayout(uint groupIndex) => WGPU.wgpuComputePipelineGetBindGroupLayout(this, groupIndex);
+    public WGPUBindGroupLayout GetBindGroupLayout(uint groupIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePipeline");
+        return WGPU.wgpuComputePipelineGetBindGroupLayout(this, groupIndex);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePipelineSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuComputePipelineSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePipeline");
+        WGPU.wgpuComputePipelineSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePipelineSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePipeline");
         fixed (byte* __label = label)
         {
             WGPU.wgpuComputePipelineSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -1335,6 +1681,7 @@ public readonly unsafe partial struct WGPUComputePipeline : IEquatable<WGPUCompu
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePipeline");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuComputePipelineSetLabel(this, __label.View);
     }
@@ -1342,12 +1689,20 @@ public readonly unsafe partial struct WGPUComputePipeline : IEquatable<WGPUCompu
     /// <summary>
     /// Calls <c>wgpuComputePipelineAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuComputePipelineAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePipeline");
+        WGPU.wgpuComputePipelineAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuComputePipelineRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuComputePipelineRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUComputePipeline");
+        WGPU.wgpuComputePipelineRelease(this);
+    }
 
 }
 
@@ -1413,7 +1768,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUBindGroup CreateBindGroup(WGPUBindGroupDescriptor* descriptor) => WGPU.wgpuDeviceCreateBindGroup(this, descriptor);
+    public WGPUBindGroup CreateBindGroup(WGPUBindGroupDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateBindGroup(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateBindGroup</c>.
@@ -1423,6 +1783,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUBindGroup CreateBindGroup(in WGPUBindGroupDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUBindGroupDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateBindGroup(this, __descriptor);
@@ -1435,7 +1796,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUBindGroupLayout CreateBindGroupLayout(WGPUBindGroupLayoutDescriptor* descriptor) => WGPU.wgpuDeviceCreateBindGroupLayout(this, descriptor);
+    public WGPUBindGroupLayout CreateBindGroupLayout(WGPUBindGroupLayoutDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateBindGroupLayout(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateBindGroupLayout</c>.
@@ -1445,6 +1811,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUBindGroupLayout CreateBindGroupLayout(in WGPUBindGroupLayoutDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUBindGroupLayoutDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateBindGroupLayout(this, __descriptor);
@@ -1462,7 +1829,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUBuffer CreateBuffer(WGPUBufferDescriptor* descriptor) => WGPU.wgpuDeviceCreateBuffer(this, descriptor);
+    public WGPUBuffer CreateBuffer(WGPUBufferDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateBuffer(this, descriptor);
+    }
 
     /// <summary>
     /// TODO
@@ -1477,6 +1849,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUBuffer CreateBuffer(in WGPUBufferDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUBufferDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateBuffer(this, __descriptor);
@@ -1489,7 +1862,11 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUCommandEncoder CreateCommandEncoder(WGPUCommandEncoderDescriptor* descriptor = null) => WGPU.wgpuDeviceCreateCommandEncoder(this, descriptor);
+    public WGPUCommandEncoder CreateCommandEncoder(WGPUCommandEncoderDescriptor* descriptor = null)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceCreateCommandEncoder(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateCommandEncoder</c>.
@@ -1499,6 +1876,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUCommandEncoder CreateCommandEncoder(in WGPUCommandEncoderDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUCommandEncoderDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateCommandEncoder(this, __descriptor);
@@ -1511,7 +1889,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUComputePipeline CreateComputePipeline(WGPUComputePipelineDescriptor* descriptor) => WGPU.wgpuDeviceCreateComputePipeline(this, descriptor);
+    public WGPUComputePipeline CreateComputePipeline(WGPUComputePipelineDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateComputePipeline(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateComputePipeline</c>.
@@ -1521,6 +1904,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUComputePipeline CreateComputePipeline(in WGPUComputePipelineDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUComputePipelineDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateComputePipeline(this, __descriptor);
@@ -1530,13 +1914,19 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <summary>
     /// Calls <c>wgpuDeviceCreateComputePipelineAsync</c>.
     /// </summary>
-    public WGPUFuture CreateComputePipelineAsync(WGPUComputePipelineDescriptor* descriptor, WGPUCreateComputePipelineAsyncCallbackInfo callbackInfo) => WGPU.wgpuDeviceCreateComputePipelineAsync(this, descriptor, callbackInfo);
+    public WGPUFuture CreateComputePipelineAsync(WGPUComputePipelineDescriptor* descriptor, WGPUCreateComputePipelineAsyncCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateComputePipelineAsync(this, descriptor, callbackInfo);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateComputePipelineAsync</c>.
     /// </summary>
     public WGPUFuture CreateComputePipelineAsync(in WGPUComputePipelineDescriptor descriptor, WGPUCreateComputePipelineAsyncCallbackInfo callbackInfo)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUComputePipelineDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateComputePipelineAsync(this, __descriptor, callbackInfo);
@@ -1549,7 +1939,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUPipelineLayout CreatePipelineLayout(WGPUPipelineLayoutDescriptor* descriptor) => WGPU.wgpuDeviceCreatePipelineLayout(this, descriptor);
+    public WGPUPipelineLayout CreatePipelineLayout(WGPUPipelineLayoutDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreatePipelineLayout(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreatePipelineLayout</c>.
@@ -1559,6 +1954,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUPipelineLayout CreatePipelineLayout(in WGPUPipelineLayoutDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUPipelineLayoutDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreatePipelineLayout(this, __descriptor);
@@ -1571,7 +1967,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUQuerySet CreateQuerySet(WGPUQuerySetDescriptor* descriptor) => WGPU.wgpuDeviceCreateQuerySet(this, descriptor);
+    public WGPUQuerySet CreateQuerySet(WGPUQuerySetDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateQuerySet(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateQuerySet</c>.
@@ -1581,6 +1982,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUQuerySet CreateQuerySet(in WGPUQuerySetDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUQuerySetDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateQuerySet(this, __descriptor);
@@ -1593,7 +1995,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPURenderBundleEncoder CreateRenderBundleEncoder(WGPURenderBundleEncoderDescriptor* descriptor) => WGPU.wgpuDeviceCreateRenderBundleEncoder(this, descriptor);
+    public WGPURenderBundleEncoder CreateRenderBundleEncoder(WGPURenderBundleEncoderDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateRenderBundleEncoder(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateRenderBundleEncoder</c>.
@@ -1603,6 +2010,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPURenderBundleEncoder CreateRenderBundleEncoder(in WGPURenderBundleEncoderDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPURenderBundleEncoderDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateRenderBundleEncoder(this, __descriptor);
@@ -1615,7 +2023,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPURenderPipeline CreateRenderPipeline(WGPURenderPipelineDescriptor* descriptor) => WGPU.wgpuDeviceCreateRenderPipeline(this, descriptor);
+    public WGPURenderPipeline CreateRenderPipeline(WGPURenderPipelineDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateRenderPipeline(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateRenderPipeline</c>.
@@ -1625,6 +2038,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPURenderPipeline CreateRenderPipeline(in WGPURenderPipelineDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPURenderPipelineDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateRenderPipeline(this, __descriptor);
@@ -1634,13 +2048,19 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <summary>
     /// Calls <c>wgpuDeviceCreateRenderPipelineAsync</c>.
     /// </summary>
-    public WGPUFuture CreateRenderPipelineAsync(WGPURenderPipelineDescriptor* descriptor, WGPUCreateRenderPipelineAsyncCallbackInfo callbackInfo) => WGPU.wgpuDeviceCreateRenderPipelineAsync(this, descriptor, callbackInfo);
+    public WGPUFuture CreateRenderPipelineAsync(WGPURenderPipelineDescriptor* descriptor, WGPUCreateRenderPipelineAsyncCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateRenderPipelineAsync(this, descriptor, callbackInfo);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateRenderPipelineAsync</c>.
     /// </summary>
     public WGPUFuture CreateRenderPipelineAsync(in WGPURenderPipelineDescriptor descriptor, WGPUCreateRenderPipelineAsyncCallbackInfo callbackInfo)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPURenderPipelineDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateRenderPipelineAsync(this, __descriptor, callbackInfo);
@@ -1653,7 +2073,11 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUSampler CreateSampler(WGPUSamplerDescriptor* descriptor = null) => WGPU.wgpuDeviceCreateSampler(this, descriptor);
+    public WGPUSampler CreateSampler(WGPUSamplerDescriptor* descriptor = null)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceCreateSampler(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateSampler</c>.
@@ -1663,6 +2087,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUSampler CreateSampler(in WGPUSamplerDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUSamplerDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateSampler(this, __descriptor);
@@ -1675,7 +2100,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUShaderModule CreateShaderModule(WGPUShaderModuleDescriptor* descriptor) => WGPU.wgpuDeviceCreateShaderModule(this, descriptor);
+    public WGPUShaderModule CreateShaderModule(WGPUShaderModuleDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateShaderModule(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateShaderModule</c>.
@@ -1685,6 +2115,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUShaderModule CreateShaderModule(in WGPUShaderModuleDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUShaderModuleDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateShaderModule(this, __descriptor);
@@ -1697,7 +2128,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUTexture CreateTexture(WGPUTextureDescriptor* descriptor) => WGPU.wgpuDeviceCreateTexture(this, descriptor);
+    public WGPUTexture CreateTexture(WGPUTextureDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateTexture(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateTexture</c>.
@@ -1707,6 +2143,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </returns>
     public WGPUTexture CreateTexture(in WGPUTextureDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUTextureDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateTexture(this, __descriptor);
@@ -1716,7 +2153,11 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <summary>
     /// Calls <c>wgpuDeviceDestroy</c>.
     /// </summary>
-    public void Destroy() => WGPU.wgpuDeviceDestroy(this);
+    public void Destroy()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        WGPU.wgpuDeviceDestroy(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceGetAdapterInfo</c>.
@@ -1727,7 +2168,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// Indicates if there was an <c>OutStructChainError</c>.
     /// </returns>
-    public WGPUStatus GetAdapterInfo(WGPUAdapterInfo* adapterInfo) => WGPU.wgpuDeviceGetAdapterInfo(this, adapterInfo);
+    public WGPUStatus GetAdapterInfo(WGPUAdapterInfo* adapterInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (adapterInfo == null) Check.ThrowNullArgument(nameof(adapterInfo));
+        return WGPU.wgpuDeviceGetAdapterInfo(this, adapterInfo);
+    }
 
     /// <summary>
     /// Get the list of <c>WGPUFeatureName</c> values supported by the device.
@@ -1737,7 +2183,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <param name="features">
     /// This parameter is <c>ReturnedWithOwnership</c>.
     /// </param>
-    public void GetFeatures(WGPUSupportedFeatures* features) => WGPU.wgpuDeviceGetFeatures(this, features);
+    public void GetFeatures(WGPUSupportedFeatures* features)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (features == null) Check.ThrowNullArgument(nameof(features));
+        WGPU.wgpuDeviceGetFeatures(this, features);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceGetLimits</c>.
@@ -1745,7 +2196,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// Indicates if there was an <c>OutStructChainError</c>.
     /// </returns>
-    public WGPUStatus GetLimits(WGPULimits* limits) => WGPU.wgpuDeviceGetLimits(this, limits);
+    public WGPUStatus GetLimits(WGPULimits* limits)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (limits == null) Check.ThrowNullArgument(nameof(limits));
+        return WGPU.wgpuDeviceGetLimits(this, limits);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceGetLostFuture</c>.
@@ -1753,7 +2209,11 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// The <c>WGPUFuture</c> for the device-lost event of the device.
     /// </returns>
-    public WGPUFuture GetLostFuture() => WGPU.wgpuDeviceGetLostFuture(this);
+    public WGPUFuture GetLostFuture()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceGetLostFuture(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceGetQueue</c>.
@@ -1761,12 +2221,20 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUQueue GetQueue() => WGPU.wgpuDeviceGetQueue(this);
+    public WGPUQueue GetQueue()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceGetQueue(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceHasFeature</c>.
     /// </summary>
-    public WGPUBool HasFeature(WGPUFeatureName feature) => WGPU.wgpuDeviceHasFeature(this, feature);
+    public WGPUBool HasFeature(WGPUFeatureName feature)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceHasFeature(this, feature);
+    }
 
     /// <summary>
     /// Pops an error scope to the current thread's error scope stack,
@@ -1774,7 +2242,11 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDevicePopErrorScope</c>.
     /// </summary>
-    public WGPUFuture PopErrorScope(WGPUPopErrorScopeCallbackInfo callbackInfo) => WGPU.wgpuDevicePopErrorScope(this, callbackInfo);
+    public WGPUFuture PopErrorScope(WGPUPopErrorScopeCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDevicePopErrorScope(this, callbackInfo);
+    }
 
     /// <summary>
     /// Pushes an error scope to the current thread's error scope stack.
@@ -1782,18 +2254,28 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDevicePushErrorScope</c>.
     /// </summary>
-    public void PushErrorScope(WGPUErrorFilter filter) => WGPU.wgpuDevicePushErrorScope(this, filter);
+    public void PushErrorScope(WGPUErrorFilter filter)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (!WGPUEnumChecks.IsDefined(filter)) Check.ThrowUndefined(nameof(filter), filter);
+        WGPU.wgpuDevicePushErrorScope(this, filter);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuDeviceSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        WGPU.wgpuDeviceSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (byte* __label = label)
         {
             WGPU.wgpuDeviceSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -1805,6 +2287,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuDeviceSetLabel(this, __label.View);
     }
@@ -1812,12 +2295,20 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <summary>
     /// Calls <c>wgpuDeviceAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuDeviceAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        WGPU.wgpuDeviceAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuDeviceRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        WGPU.wgpuDeviceRelease(this);
+    }
 
     /// <summary>
     /// Processes pending work on the device, optionally blocking until it completes.
@@ -1830,18 +2321,28 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDevicePoll</c>.
     /// </summary>
-    public WGPUNativePollStatus Poll(WGPUBool wait, ulong* submissionIndex, ulong timeout_ns) => WGPU.wgpuDevicePoll(this, wait, submissionIndex, timeout_ns);
+    public WGPUNativePollStatus Poll(WGPUBool wait, ulong* submissionIndex, ulong timeout_ns)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDevicePoll(this, wait, submissionIndex, timeout_ns);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateShaderModulePassthrough</c>.
     /// </summary>
-    public WGPUShaderModule CreateShaderModulePassthrough(WGPUShaderModuleDescriptorPassthrough* descriptor) => WGPU.wgpuDeviceCreateShaderModulePassthrough(this, descriptor);
+    public WGPUShaderModule CreateShaderModulePassthrough(WGPUShaderModuleDescriptorPassthrough* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateShaderModulePassthrough(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateShaderModulePassthrough</c>.
     /// </summary>
     public WGPUShaderModule CreateShaderModulePassthrough(in WGPUShaderModuleDescriptorPassthrough descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUShaderModuleDescriptorPassthrough* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateShaderModulePassthrough(this, __descriptor);
@@ -1857,28 +2358,46 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDeviceGetNativeMetalDevice</c>.
     /// </summary>
-    public void* GetNativeMetalDevice() => WGPU.wgpuDeviceGetNativeMetalDevice(this);
+    public void* GetNativeMetalDevice()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceGetNativeMetalDevice(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceStartGraphicsDebuggerCapture</c>.
     /// </summary>
-    public WGPUBool StartGraphicsDebuggerCapture() => WGPU.wgpuDeviceStartGraphicsDebuggerCapture(this);
+    public WGPUBool StartGraphicsDebuggerCapture()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceStartGraphicsDebuggerCapture(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceStopGraphicsDebuggerCapture</c>.
     /// </summary>
-    public void StopGraphicsDebuggerCapture() => WGPU.wgpuDeviceStopGraphicsDebuggerCapture(this);
+    public void StopGraphicsDebuggerCapture()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        WGPU.wgpuDeviceStopGraphicsDebuggerCapture(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateShaderModuleTrusted</c>.
     /// </summary>
-    public WGPUShaderModule CreateShaderModuleTrusted(WGPUShaderModuleDescriptor* descriptor, WGPUShaderRuntimeChecks runtimeChecks) => WGPU.wgpuDeviceCreateShaderModuleTrusted(this, descriptor, runtimeChecks);
+    public WGPUShaderModule CreateShaderModuleTrusted(WGPUShaderModuleDescriptor* descriptor, WGPUShaderRuntimeChecks runtimeChecks)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateShaderModuleTrusted(this, descriptor, runtimeChecks);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateShaderModuleTrusted</c>.
     /// </summary>
     public WGPUShaderModule CreateShaderModuleTrusted(in WGPUShaderModuleDescriptor descriptor, WGPUShaderRuntimeChecks runtimeChecks)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUShaderModuleDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateShaderModuleTrusted(this, __descriptor, runtimeChecks);
@@ -1888,13 +2407,19 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <summary>
     /// Calls <c>wgpuDeviceCreateMeshPipeline</c>.
     /// </summary>
-    public WGPURenderPipeline CreateMeshPipeline(WGPUMeshPipelineDescriptor* descriptor) => WGPU.wgpuDeviceCreateMeshPipeline(this, descriptor);
+    public WGPURenderPipeline CreateMeshPipeline(WGPUMeshPipelineDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateMeshPipeline(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreateMeshPipeline</c>.
     /// </summary>
     public WGPURenderPipeline CreateMeshPipeline(in WGPUMeshPipelineDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUMeshPipelineDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateMeshPipeline(this, __descriptor);
@@ -1904,13 +2429,19 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <summary>
     /// Calls <c>wgpuDeviceCreatePipelineCache</c>.
     /// </summary>
-    public WGPUPipelineCache CreatePipelineCache(WGPUPipelineCacheDescriptor* descriptor) => WGPU.wgpuDeviceCreatePipelineCache(this, descriptor);
+    public WGPUPipelineCache CreatePipelineCache(WGPUPipelineCacheDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreatePipelineCache(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuDeviceCreatePipelineCache</c>.
     /// </summary>
     public WGPUPipelineCache CreatePipelineCache(in WGPUPipelineCacheDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUPipelineCacheDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreatePipelineCache(this, __descriptor);
@@ -1922,7 +2453,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDeviceCreateExternalTexture</c>.
     /// </summary>
-    public WGPUExternalTexture CreateExternalTexture(WGPUExternalTextureDescriptor* descriptor, WGPUTextureView* planes, nuint planeCount) => WGPU.wgpuDeviceCreateExternalTexture(this, descriptor, planes, planeCount);
+    public WGPUExternalTexture CreateExternalTexture(WGPUExternalTextureDescriptor* descriptor, WGPUTextureView* planes, nuint planeCount)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateExternalTexture(this, descriptor, planes, planeCount);
+    }
 
     /// <summary>
     /// Create an external texture. @p planes must point to @p planeCount texture views.
@@ -1931,6 +2467,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </summary>
     public WGPUExternalTexture CreateExternalTexture(in WGPUExternalTextureDescriptor descriptor, WGPUTextureView* planes, nuint planeCount)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUExternalTextureDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateExternalTexture(this, __descriptor, planes, planeCount);
@@ -1942,7 +2479,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDeviceCreateBlas</c>.
     /// </summary>
-    public WGPUBlas CreateBlas(WGPUBlasDescriptor* descriptor, WGPUBlasSizeDescriptors sizes) => WGPU.wgpuDeviceCreateBlas(this, descriptor, sizes);
+    public WGPUBlas CreateBlas(WGPUBlasDescriptor* descriptor, WGPUBlasSizeDescriptors sizes)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateBlas(this, descriptor, sizes);
+    }
 
     /// <summary>
     /// Create a bottom level acceleration structure.
@@ -1951,6 +2493,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </summary>
     public WGPUBlas CreateBlas(in WGPUBlasDescriptor descriptor, WGPUBlasSizeDescriptors sizes)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUBlasDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateBlas(this, __descriptor, sizes);
@@ -1962,7 +2505,12 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDeviceCreateTlas</c>.
     /// </summary>
-    public WGPUTlas CreateTlas(WGPUTlasDescriptor* descriptor) => WGPU.wgpuDeviceCreateTlas(this, descriptor);
+    public WGPUTlas CreateTlas(WGPUTlasDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuDeviceCreateTlas(this, descriptor);
+    }
 
     /// <summary>
     /// Create a top level acceleration structure.
@@ -1971,6 +2519,7 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// </summary>
     public WGPUTlas CreateTlas(in WGPUTlasDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
         fixed (WGPUTlasDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuDeviceCreateTlas(this, __descriptor);
@@ -1982,7 +2531,11 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDeviceGetInternalCounters</c>.
     /// </summary>
-    public WGPUInternalCounters GetInternalCounters() => WGPU.wgpuDeviceGetInternalCounters(this);
+    public WGPUInternalCounters GetInternalCounters()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceGetInternalCounters(this);
+    }
 
     /// <summary>
     /// Returns a snapshot of the GPU memory allocator's state for this device.
@@ -1994,7 +2547,11 @@ public readonly unsafe partial struct WGPUDevice : IEquatable<WGPUDevice>, IDisp
     /// <para/>
     /// Calls <c>wgpuDeviceGetAllocatorReport</c>.
     /// </summary>
-    public WGPUAllocatorReport GetAllocatorReport() => WGPU.wgpuDeviceGetAllocatorReport(this);
+    public WGPUAllocatorReport GetAllocatorReport()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUDevice");
+        return WGPU.wgpuDeviceGetAllocatorReport(this);
+    }
 
 }
 
@@ -2054,13 +2611,18 @@ public readonly unsafe partial struct WGPUExternalTexture : IEquatable<WGPUExter
     /// <summary>
     /// Calls <c>wgpuExternalTextureSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuExternalTextureSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUExternalTexture");
+        WGPU.wgpuExternalTextureSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuExternalTextureSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUExternalTexture");
         fixed (byte* __label = label)
         {
             WGPU.wgpuExternalTextureSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -2072,6 +2634,7 @@ public readonly unsafe partial struct WGPUExternalTexture : IEquatable<WGPUExter
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUExternalTexture");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuExternalTextureSetLabel(this, __label.View);
     }
@@ -2079,12 +2642,20 @@ public readonly unsafe partial struct WGPUExternalTexture : IEquatable<WGPUExter
     /// <summary>
     /// Calls <c>wgpuExternalTextureAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuExternalTextureAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUExternalTexture");
+        WGPU.wgpuExternalTextureAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuExternalTextureRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuExternalTextureRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUExternalTexture");
+        WGPU.wgpuExternalTextureRelease(this);
+    }
 
 }
 
@@ -2151,7 +2722,12 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// A new <c>WGPUSurface</c> for this descriptor (or an error <c>WGPUSurface</c>).
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUSurface CreateSurface(WGPUSurfaceDescriptor* descriptor) => WGPU.wgpuInstanceCreateSurface(this, descriptor);
+    public WGPUSurface CreateSurface(WGPUSurfaceDescriptor* descriptor)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        if (descriptor == null) Check.ThrowNullArgument(nameof(descriptor));
+        return WGPU.wgpuInstanceCreateSurface(this, descriptor);
+    }
 
     /// <summary>
     /// Creates a <c>WGPUSurface</c>, see <c>Surface</c>-Creation for more details.
@@ -2167,6 +2743,7 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// </returns>
     public WGPUSurface CreateSurface(in WGPUSurfaceDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
         fixed (WGPUSurfaceDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuInstanceCreateSurface(this, __descriptor);
@@ -2178,12 +2755,21 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// <para/>
     /// Calls <c>wgpuInstanceGetWGSLLanguageFeatures</c>.
     /// </summary>
-    public void GetWGSLLanguageFeatures(WGPUSupportedWGSLLanguageFeatures* features) => WGPU.wgpuInstanceGetWGSLLanguageFeatures(this, features);
+    public void GetWGSLLanguageFeatures(WGPUSupportedWGSLLanguageFeatures* features)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        if (features == null) Check.ThrowNullArgument(nameof(features));
+        WGPU.wgpuInstanceGetWGSLLanguageFeatures(this, features);
+    }
 
     /// <summary>
     /// Calls <c>wgpuInstanceHasWGSLLanguageFeature</c>.
     /// </summary>
-    public WGPUBool HasWGSLLanguageFeature(WGPUWGSLLanguageFeatureName feature) => WGPU.wgpuInstanceHasWGSLLanguageFeature(this, feature);
+    public WGPUBool HasWGSLLanguageFeature(WGPUWGSLLanguageFeatureName feature)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        return WGPU.wgpuInstanceHasWGSLLanguageFeature(this, feature);
+    }
 
     /// <summary>
     /// Processes asynchronous events on this <c>WGPUInstance</c>, calling any callbacks for asynchronous operations created with <c>WGPUCallbackMode_AllowProcessEvents</c>.
@@ -2192,18 +2778,27 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// <para/>
     /// Calls <c>wgpuInstanceProcessEvents</c>.
     /// </summary>
-    public void ProcessEvents() => WGPU.wgpuInstanceProcessEvents(this);
+    public void ProcessEvents()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        WGPU.wgpuInstanceProcessEvents(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuInstanceRequestAdapter</c>.
     /// </summary>
-    public WGPUFuture RequestAdapter(WGPURequestAdapterOptions* options, WGPURequestAdapterCallbackInfo callbackInfo) => WGPU.wgpuInstanceRequestAdapter(this, options, callbackInfo);
+    public WGPUFuture RequestAdapter(WGPURequestAdapterOptions* options, WGPURequestAdapterCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        return WGPU.wgpuInstanceRequestAdapter(this, options, callbackInfo);
+    }
 
     /// <summary>
     /// Calls <c>wgpuInstanceRequestAdapter</c>.
     /// </summary>
     public WGPUFuture RequestAdapter(in WGPURequestAdapterOptions options, WGPURequestAdapterCallbackInfo callbackInfo)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
         fixed (WGPURequestAdapterOptions* __options = &options)
         {
             return WGPU.wgpuInstanceRequestAdapter(this, __options, callbackInfo);
@@ -2217,7 +2812,11 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// <para/>
     /// Calls <c>wgpuInstanceWaitAny</c>.
     /// </summary>
-    public WGPUWaitStatus WaitAny(nuint futureCount, WGPUFutureWaitInfo* futures, ulong timeoutNS) => WGPU.wgpuInstanceWaitAny(this, futureCount, futures, timeoutNS);
+    public WGPUWaitStatus WaitAny(nuint futureCount, WGPUFutureWaitInfo* futures, ulong timeoutNS)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        return WGPU.wgpuInstanceWaitAny(this, futureCount, futures, timeoutNS);
+    }
 
     /// <summary>
     /// Wait for at least one WGPUFuture in <c>futures</c> to complete, and call callbacks of the respective completed asynchronous operations.
@@ -2228,6 +2827,7 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// </summary>
     public WGPUWaitStatus WaitAny(Span<WGPUFutureWaitInfo> futures, ulong timeoutNS)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
         fixed (WGPUFutureWaitInfo* __futures = futures)
         {
             return WGPU.wgpuInstanceWaitAny(this, (nuint)futures.Length, __futures, timeoutNS);
@@ -2237,23 +2837,36 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// <summary>
     /// Calls <c>wgpuInstanceAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuInstanceAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        WGPU.wgpuInstanceAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuInstanceRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuInstanceRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        WGPU.wgpuInstanceRelease(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuInstanceEnumerateAdapters</c>.
     /// </summary>
-    public nuint EnumerateAdapters(WGPUInstanceEnumerateAdapterOptions* options, WGPUAdapter* adapters) => WGPU.wgpuInstanceEnumerateAdapters(this, options, adapters);
+    public nuint EnumerateAdapters(WGPUInstanceEnumerateAdapterOptions* options, WGPUAdapter* adapters)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        return WGPU.wgpuInstanceEnumerateAdapters(this, options, adapters);
+    }
 
     /// <summary>
     /// Calls <c>wgpuInstanceEnumerateAdapters</c>.
     /// </summary>
     public nuint EnumerateAdapters(in WGPUInstanceEnumerateAdapterOptions options, WGPUAdapter* adapters)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
         fixed (WGPUInstanceEnumerateAdapterOptions* __options = &options)
         {
             return WGPU.wgpuInstanceEnumerateAdapters(this, __options, adapters);
@@ -2268,7 +2881,11 @@ public readonly unsafe partial struct WGPUInstance : IEquatable<WGPUInstance>, I
     /// <para/>
     /// Calls <c>wgpuInstancePollAllDevices</c>.
     /// </summary>
-    public WGPUBool PollAllDevices(WGPUBool wait) => WGPU.wgpuInstancePollAllDevices(this, wait);
+    public WGPUBool PollAllDevices(WGPUBool wait)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUInstance");
+        return WGPU.wgpuInstancePollAllDevices(this, wait);
+    }
 
 }
 
@@ -2326,13 +2943,18 @@ public readonly unsafe partial struct WGPUPipelineLayout : IEquatable<WGPUPipeli
     /// <summary>
     /// Calls <c>wgpuPipelineLayoutSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuPipelineLayoutSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineLayout");
+        WGPU.wgpuPipelineLayoutSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuPipelineLayoutSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineLayout");
         fixed (byte* __label = label)
         {
             WGPU.wgpuPipelineLayoutSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -2344,6 +2966,7 @@ public readonly unsafe partial struct WGPUPipelineLayout : IEquatable<WGPUPipeli
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineLayout");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuPipelineLayoutSetLabel(this, __label.View);
     }
@@ -2351,12 +2974,20 @@ public readonly unsafe partial struct WGPUPipelineLayout : IEquatable<WGPUPipeli
     /// <summary>
     /// Calls <c>wgpuPipelineLayoutAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuPipelineLayoutAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineLayout");
+        WGPU.wgpuPipelineLayoutAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuPipelineLayoutRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuPipelineLayoutRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineLayout");
+        WGPU.wgpuPipelineLayoutRelease(this);
+    }
 
 }
 
@@ -2414,28 +3045,45 @@ public readonly unsafe partial struct WGPUQuerySet : IEquatable<WGPUQuerySet>, I
     /// <summary>
     /// Calls <c>wgpuQuerySetDestroy</c>.
     /// </summary>
-    public void Destroy() => WGPU.wgpuQuerySetDestroy(this);
+    public void Destroy()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
+        WGPU.wgpuQuerySetDestroy(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQuerySetGetCount</c>.
     /// </summary>
-    public uint GetCount() => WGPU.wgpuQuerySetGetCount(this);
+    public uint GetCount()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
+        return WGPU.wgpuQuerySetGetCount(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQuerySetGetType</c>.
     /// </summary>
-    public new WGPUQueryType GetType() => WGPU.wgpuQuerySetGetType(this);
+    public new WGPUQueryType GetType()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
+        return WGPU.wgpuQuerySetGetType(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQuerySetSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuQuerySetSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
+        WGPU.wgpuQuerySetSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQuerySetSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
         fixed (byte* __label = label)
         {
             WGPU.wgpuQuerySetSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -2447,6 +3095,7 @@ public readonly unsafe partial struct WGPUQuerySet : IEquatable<WGPUQuerySet>, I
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuQuerySetSetLabel(this, __label.View);
     }
@@ -2454,12 +3103,20 @@ public readonly unsafe partial struct WGPUQuerySet : IEquatable<WGPUQuerySet>, I
     /// <summary>
     /// Calls <c>wgpuQuerySetAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuQuerySetAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
+        WGPU.wgpuQuerySetAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQuerySetRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuQuerySetRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQuerySet");
+        WGPU.wgpuQuerySetRelease(this);
+    }
 
 }
 
@@ -2517,18 +3174,27 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <summary>
     /// Calls <c>wgpuQueueOnSubmittedWorkDone</c>.
     /// </summary>
-    public WGPUFuture OnSubmittedWorkDone(WGPUQueueWorkDoneCallbackInfo callbackInfo) => WGPU.wgpuQueueOnSubmittedWorkDone(this, callbackInfo);
+    public WGPUFuture OnSubmittedWorkDone(WGPUQueueWorkDoneCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        return WGPU.wgpuQueueOnSubmittedWorkDone(this, callbackInfo);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQueueSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuQueueSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        WGPU.wgpuQueueSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQueueSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
         fixed (byte* __label = label)
         {
             WGPU.wgpuQueueSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -2540,6 +3206,7 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuQueueSetLabel(this, __label.View);
     }
@@ -2547,13 +3214,18 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <summary>
     /// Calls <c>wgpuQueueSubmit</c>.
     /// </summary>
-    public void Submit(nuint commandCount, WGPUCommandBuffer* commands) => WGPU.wgpuQueueSubmit(this, commandCount, commands);
+    public void Submit(nuint commandCount, WGPUCommandBuffer* commands)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        WGPU.wgpuQueueSubmit(this, commandCount, commands);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQueueSubmit</c>.
     /// </summary>
     public void Submit(ReadOnlySpan<WGPUCommandBuffer> commands)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
         fixed (WGPUCommandBuffer* __commands = commands)
         {
             WGPU.wgpuQueueSubmit(this, (nuint)commands.Length, __commands);
@@ -2566,7 +3238,12 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <para/>
     /// Calls <c>wgpuQueueWriteBuffer</c>.
     /// </summary>
-    public void WriteBuffer(WGPUBuffer buffer, ulong bufferOffset, void* data, nuint size) => WGPU.wgpuQueueWriteBuffer(this, buffer, bufferOffset, data, size);
+    public void WriteBuffer(WGPUBuffer buffer, ulong bufferOffset, void* data, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        WGPU.wgpuQueueWriteBuffer(this, buffer, bufferOffset, data, size);
+    }
 
     /// <summary>
     /// Produces a <c>DeviceError</c> both content-timeline (<c>size</c> alignment) and device-timeline
@@ -2576,6 +3253,8 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// </summary>
     public void WriteBuffer<TData>(WGPUBuffer buffer, ulong bufferOffset, ReadOnlySpan<TData> data) where TData : unmanaged
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
         fixed (TData* __data = data)
         {
             WGPU.wgpuQueueWriteBuffer(this, buffer, bufferOffset, __data, (nuint)data.Length * (nuint)sizeof(TData));
@@ -2585,13 +3264,21 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <summary>
     /// Calls <c>wgpuQueueWriteTexture</c>.
     /// </summary>
-    public void WriteTexture(WGPUTexelCopyTextureInfo* destination, void* data, nuint dataSize, WGPUTexelCopyBufferLayout* dataLayout, WGPUExtent3D* writeSize) => WGPU.wgpuQueueWriteTexture(this, destination, data, dataSize, dataLayout, writeSize);
+    public void WriteTexture(WGPUTexelCopyTextureInfo* destination, void* data, nuint dataSize, WGPUTexelCopyBufferLayout* dataLayout, WGPUExtent3D* writeSize)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        if (destination == null) Check.ThrowNullArgument(nameof(destination));
+        if (dataLayout == null) Check.ThrowNullArgument(nameof(dataLayout));
+        if (writeSize == null) Check.ThrowNullArgument(nameof(writeSize));
+        WGPU.wgpuQueueWriteTexture(this, destination, data, dataSize, dataLayout, writeSize);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQueueWriteTexture</c>.
     /// </summary>
     public void WriteTexture<TData>(in WGPUTexelCopyTextureInfo destination, ReadOnlySpan<TData> data, in WGPUTexelCopyBufferLayout dataLayout, in WGPUExtent3D writeSize) where TData : unmanaged
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
         fixed (WGPUTexelCopyTextureInfo* __destination = &destination)
         fixed (TData* __data = data)
         fixed (WGPUTexelCopyBufferLayout* __dataLayout = &dataLayout)
@@ -2604,23 +3291,36 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <summary>
     /// Calls <c>wgpuQueueAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuQueueAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        WGPU.wgpuQueueAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQueueRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuQueueRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        WGPU.wgpuQueueRelease(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQueueSubmitForIndex</c>.
     /// </summary>
-    public ulong SubmitForIndex(nuint commandCount, WGPUCommandBuffer* commands) => WGPU.wgpuQueueSubmitForIndex(this, commandCount, commands);
+    public ulong SubmitForIndex(nuint commandCount, WGPUCommandBuffer* commands)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        return WGPU.wgpuQueueSubmitForIndex(this, commandCount, commands);
+    }
 
     /// <summary>
     /// Calls <c>wgpuQueueSubmitForIndex</c>.
     /// </summary>
     public ulong SubmitForIndex(ReadOnlySpan<WGPUCommandBuffer> commands)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
         fixed (WGPUCommandBuffer* __commands = commands)
         {
             return WGPU.wgpuQueueSubmitForIndex(this, (nuint)commands.Length, __commands);
@@ -2630,7 +3330,11 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <summary>
     /// Calls <c>wgpuQueueGetTimestampPeriod</c>.
     /// </summary>
-    public float GetTimestampPeriod() => WGPU.wgpuQueueGetTimestampPeriod(this);
+    public float GetTimestampPeriod()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        return WGPU.wgpuQueueGetTimestampPeriod(this);
+    }
 
     /// <summary>
     /// Returns the backend-native <c>id&lt;MTLCommandQueue&gt;</c> as an opaque pointer.
@@ -2641,7 +3345,11 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <para/>
     /// Calls <c>wgpuQueueGetNativeMetalCommandQueue</c>.
     /// </summary>
-    public void* GetNativeMetalCommandQueue() => WGPU.wgpuQueueGetNativeMetalCommandQueue(this);
+    public void* GetNativeMetalCommandQueue()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        return WGPU.wgpuQueueGetNativeMetalCommandQueue(this);
+    }
 
     /// <summary>
     /// Compact a BLAS. Returns a new (smaller) BLAS handle.
@@ -2649,7 +3357,12 @@ public readonly unsafe partial struct WGPUQueue : IEquatable<WGPUQueue>, IDispos
     /// <para/>
     /// Calls <c>wgpuQueueCompactBlas</c>.
     /// </summary>
-    public WGPUBlas CompactBlas(WGPUBlas blas) => WGPU.wgpuQueueCompactBlas(this, blas);
+    public WGPUBlas CompactBlas(WGPUBlas blas)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUQueue");
+        if (blas.IsNull) Check.ThrowNullArgument(nameof(blas));
+        return WGPU.wgpuQueueCompactBlas(this, blas);
+    }
 
 }
 
@@ -2707,13 +3420,18 @@ public readonly unsafe partial struct WGPURenderBundle : IEquatable<WGPURenderBu
     /// <summary>
     /// Calls <c>wgpuRenderBundleSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuRenderBundleSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundle");
+        WGPU.wgpuRenderBundleSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundle");
         fixed (byte* __label = label)
         {
             WGPU.wgpuRenderBundleSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -2725,6 +3443,7 @@ public readonly unsafe partial struct WGPURenderBundle : IEquatable<WGPURenderBu
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundle");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderBundleSetLabel(this, __label.View);
     }
@@ -2732,12 +3451,20 @@ public readonly unsafe partial struct WGPURenderBundle : IEquatable<WGPURenderBu
     /// <summary>
     /// Calls <c>wgpuRenderBundleAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuRenderBundleAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundle");
+        WGPU.wgpuRenderBundleAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuRenderBundleRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundle");
+        WGPU.wgpuRenderBundleRelease(this);
+    }
 
 }
 
@@ -2795,22 +3522,40 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderDraw</c>.
     /// </summary>
-    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance) => WGPU.wgpuRenderBundleEncoderDraw(this, vertexCount, instanceCount, firstVertex, firstInstance);
+    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderDraw(this, vertexCount, instanceCount, firstVertex, firstInstance);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderDrawIndexed</c>.
     /// </summary>
-    public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int baseVertex, uint firstInstance) => WGPU.wgpuRenderBundleEncoderDrawIndexed(this, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int baseVertex, uint firstInstance)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderDrawIndexed(this, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderDrawIndexedIndirect</c>.
     /// </summary>
-    public void DrawIndexedIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset) => WGPU.wgpuRenderBundleEncoderDrawIndexedIndirect(this, indirectBuffer, indirectOffset);
+    public void DrawIndexedIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        if (indirectBuffer.IsNull) Check.ThrowNullArgument(nameof(indirectBuffer));
+        WGPU.wgpuRenderBundleEncoderDrawIndexedIndirect(this, indirectBuffer, indirectOffset);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderDrawIndirect</c>.
     /// </summary>
-    public void DrawIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset) => WGPU.wgpuRenderBundleEncoderDrawIndirect(this, indirectBuffer, indirectOffset);
+    public void DrawIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        if (indirectBuffer.IsNull) Check.ThrowNullArgument(nameof(indirectBuffer));
+        WGPU.wgpuRenderBundleEncoderDrawIndirect(this, indirectBuffer, indirectOffset);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderFinish</c>.
@@ -2818,7 +3563,11 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPURenderBundle Finish(WGPURenderBundleDescriptor* descriptor = null) => WGPU.wgpuRenderBundleEncoderFinish(this, descriptor);
+    public WGPURenderBundle Finish(WGPURenderBundleDescriptor* descriptor = null)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        return WGPU.wgpuRenderBundleEncoderFinish(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderFinish</c>.
@@ -2828,6 +3577,7 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// </returns>
     public WGPURenderBundle Finish(in WGPURenderBundleDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         fixed (WGPURenderBundleDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuRenderBundleEncoderFinish(this, __descriptor);
@@ -2837,13 +3587,18 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderInsertDebugMarker</c>.
     /// </summary>
-    public void InsertDebugMarker(WGPUStringView markerLabel) => WGPU.wgpuRenderBundleEncoderInsertDebugMarker(this, markerLabel);
+    public void InsertDebugMarker(WGPUStringView markerLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderInsertDebugMarker(this, markerLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderInsertDebugMarker</c>.
     /// </summary>
     public void InsertDebugMarker(ReadOnlySpan<byte> markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         fixed (byte* __markerLabel = markerLabel)
         {
             WGPU.wgpuRenderBundleEncoderInsertDebugMarker(this, new WGPUStringView(__markerLabel, (nuint)markerLabel.Length));
@@ -2855,6 +3610,7 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// </summary>
     public void InsertDebugMarker(string? markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         using Utf8Scratch __markerLabel = new(markerLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderBundleEncoderInsertDebugMarker(this, __markerLabel.View);
     }
@@ -2862,18 +3618,27 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderPopDebugGroup</c>.
     /// </summary>
-    public void PopDebugGroup() => WGPU.wgpuRenderBundleEncoderPopDebugGroup(this);
+    public void PopDebugGroup()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderPopDebugGroup(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderPushDebugGroup</c>.
     /// </summary>
-    public void PushDebugGroup(WGPUStringView groupLabel) => WGPU.wgpuRenderBundleEncoderPushDebugGroup(this, groupLabel);
+    public void PushDebugGroup(WGPUStringView groupLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderPushDebugGroup(this, groupLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderPushDebugGroup</c>.
     /// </summary>
     public void PushDebugGroup(ReadOnlySpan<byte> groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         fixed (byte* __groupLabel = groupLabel)
         {
             WGPU.wgpuRenderBundleEncoderPushDebugGroup(this, new WGPUStringView(__groupLabel, (nuint)groupLabel.Length));
@@ -2885,6 +3650,7 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// </summary>
     public void PushDebugGroup(string? groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         using Utf8Scratch __groupLabel = new(groupLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderBundleEncoderPushDebugGroup(this, __groupLabel.View);
     }
@@ -2892,13 +3658,18 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetBindGroup</c>.
     /// </summary>
-    public void SetBindGroup(uint groupIndex, WGPUBindGroup group, nuint dynamicOffsetCount, uint* dynamicOffsets) => WGPU.wgpuRenderBundleEncoderSetBindGroup(this, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
+    public void SetBindGroup(uint groupIndex, WGPUBindGroup group, nuint dynamicOffsetCount, uint* dynamicOffsets)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderSetBindGroup(this, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetBindGroup</c>.
     /// </summary>
     public void SetBindGroup(uint groupIndex, WGPUBindGroup group, ReadOnlySpan<uint> dynamicOffsets)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         fixed (uint* __dynamicOffsets = dynamicOffsets)
         {
             WGPU.wgpuRenderBundleEncoderSetBindGroup(this, groupIndex, group, (nuint)dynamicOffsets.Length, __dynamicOffsets);
@@ -2908,13 +3679,18 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetImmediates</c>.
     /// </summary>
-    public void SetImmediates(uint offset, void* data, nuint size) => WGPU.wgpuRenderBundleEncoderSetImmediates(this, offset, data, size);
+    public void SetImmediates(uint offset, void* data, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderSetImmediates(this, offset, data, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetImmediates</c>.
     /// </summary>
     public void SetImmediates<TData>(uint offset, ReadOnlySpan<TData> data) where TData : unmanaged
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         fixed (TData* __data = data)
         {
             WGPU.wgpuRenderBundleEncoderSetImmediates(this, offset, __data, (nuint)data.Length * (nuint)sizeof(TData));
@@ -2924,18 +3700,29 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetIndexBuffer</c>.
     /// </summary>
-    public void SetIndexBuffer(WGPUBuffer buffer, WGPUIndexFormat format, ulong offset, ulong size) => WGPU.wgpuRenderBundleEncoderSetIndexBuffer(this, buffer, format, offset, size);
+    public void SetIndexBuffer(WGPUBuffer buffer, WGPUIndexFormat format, ulong offset, ulong size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        if (!WGPUEnumChecks.IsDefined(format)) Check.ThrowUndefined(nameof(format), format);
+        WGPU.wgpuRenderBundleEncoderSetIndexBuffer(this, buffer, format, offset, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuRenderBundleEncoderSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         fixed (byte* __label = label)
         {
             WGPU.wgpuRenderBundleEncoderSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -2947,6 +3734,7 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderBundleEncoderSetLabel(this, __label.View);
     }
@@ -2954,22 +3742,39 @@ public readonly unsafe partial struct WGPURenderBundleEncoder : IEquatable<WGPUR
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetPipeline</c>.
     /// </summary>
-    public void SetPipeline(WGPURenderPipeline pipeline) => WGPU.wgpuRenderBundleEncoderSetPipeline(this, pipeline);
+    public void SetPipeline(WGPURenderPipeline pipeline)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        if (pipeline.IsNull) Check.ThrowNullArgument(nameof(pipeline));
+        WGPU.wgpuRenderBundleEncoderSetPipeline(this, pipeline);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderSetVertexBuffer</c>.
     /// </summary>
-    public void SetVertexBuffer(uint slot, WGPUBuffer buffer, ulong offset, ulong size) => WGPU.wgpuRenderBundleEncoderSetVertexBuffer(this, slot, buffer, offset, size);
+    public void SetVertexBuffer(uint slot, WGPUBuffer buffer, ulong offset, ulong size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderSetVertexBuffer(this, slot, buffer, offset, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuRenderBundleEncoderAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderBundleEncoderRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuRenderBundleEncoderRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderBundleEncoder");
+        WGPU.wgpuRenderBundleEncoderRelease(this);
+    }
 
 }
 
@@ -3027,48 +3832,83 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderBeginOcclusionQuery</c>.
     /// </summary>
-    public void BeginOcclusionQuery(uint queryIndex) => WGPU.wgpuRenderPassEncoderBeginOcclusionQuery(this, queryIndex);
+    public void BeginOcclusionQuery(uint queryIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderBeginOcclusionQuery(this, queryIndex);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderDraw</c>.
     /// </summary>
-    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance) => WGPU.wgpuRenderPassEncoderDraw(this, vertexCount, instanceCount, firstVertex, firstInstance);
+    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderDraw(this, vertexCount, instanceCount, firstVertex, firstInstance);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderDrawIndexed</c>.
     /// </summary>
-    public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int baseVertex, uint firstInstance) => WGPU.wgpuRenderPassEncoderDrawIndexed(this, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int baseVertex, uint firstInstance)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderDrawIndexed(this, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderDrawIndexedIndirect</c>.
     /// </summary>
-    public void DrawIndexedIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset) => WGPU.wgpuRenderPassEncoderDrawIndexedIndirect(this, indirectBuffer, indirectOffset);
+    public void DrawIndexedIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (indirectBuffer.IsNull) Check.ThrowNullArgument(nameof(indirectBuffer));
+        WGPU.wgpuRenderPassEncoderDrawIndexedIndirect(this, indirectBuffer, indirectOffset);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderDrawIndirect</c>.
     /// </summary>
-    public void DrawIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset) => WGPU.wgpuRenderPassEncoderDrawIndirect(this, indirectBuffer, indirectOffset);
+    public void DrawIndirect(WGPUBuffer indirectBuffer, ulong indirectOffset)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (indirectBuffer.IsNull) Check.ThrowNullArgument(nameof(indirectBuffer));
+        WGPU.wgpuRenderPassEncoderDrawIndirect(this, indirectBuffer, indirectOffset);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderEnd</c>.
     /// </summary>
-    public void End() => WGPU.wgpuRenderPassEncoderEnd(this);
+    public void End()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderEnd(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderEndOcclusionQuery</c>.
     /// </summary>
-    public void EndOcclusionQuery() => WGPU.wgpuRenderPassEncoderEndOcclusionQuery(this);
+    public void EndOcclusionQuery()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderEndOcclusionQuery(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderExecuteBundles</c>.
     /// </summary>
-    public void ExecuteBundles(nuint bundleCount, WGPURenderBundle* bundles) => WGPU.wgpuRenderPassEncoderExecuteBundles(this, bundleCount, bundles);
+    public void ExecuteBundles(nuint bundleCount, WGPURenderBundle* bundles)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderExecuteBundles(this, bundleCount, bundles);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderExecuteBundles</c>.
     /// </summary>
     public void ExecuteBundles(ReadOnlySpan<WGPURenderBundle> bundles)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         fixed (WGPURenderBundle* __bundles = bundles)
         {
             WGPU.wgpuRenderPassEncoderExecuteBundles(this, (nuint)bundles.Length, __bundles);
@@ -3078,13 +3918,18 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderInsertDebugMarker</c>.
     /// </summary>
-    public void InsertDebugMarker(WGPUStringView markerLabel) => WGPU.wgpuRenderPassEncoderInsertDebugMarker(this, markerLabel);
+    public void InsertDebugMarker(WGPUStringView markerLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderInsertDebugMarker(this, markerLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderInsertDebugMarker</c>.
     /// </summary>
     public void InsertDebugMarker(ReadOnlySpan<byte> markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         fixed (byte* __markerLabel = markerLabel)
         {
             WGPU.wgpuRenderPassEncoderInsertDebugMarker(this, new WGPUStringView(__markerLabel, (nuint)markerLabel.Length));
@@ -3096,6 +3941,7 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// </summary>
     public void InsertDebugMarker(string? markerLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         using Utf8Scratch __markerLabel = new(markerLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderPassEncoderInsertDebugMarker(this, __markerLabel.View);
     }
@@ -3103,18 +3949,27 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderPopDebugGroup</c>.
     /// </summary>
-    public void PopDebugGroup() => WGPU.wgpuRenderPassEncoderPopDebugGroup(this);
+    public void PopDebugGroup()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderPopDebugGroup(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderPushDebugGroup</c>.
     /// </summary>
-    public void PushDebugGroup(WGPUStringView groupLabel) => WGPU.wgpuRenderPassEncoderPushDebugGroup(this, groupLabel);
+    public void PushDebugGroup(WGPUStringView groupLabel)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderPushDebugGroup(this, groupLabel);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderPushDebugGroup</c>.
     /// </summary>
     public void PushDebugGroup(ReadOnlySpan<byte> groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         fixed (byte* __groupLabel = groupLabel)
         {
             WGPU.wgpuRenderPassEncoderPushDebugGroup(this, new WGPUStringView(__groupLabel, (nuint)groupLabel.Length));
@@ -3126,6 +3981,7 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// </summary>
     public void PushDebugGroup(string? groupLabel)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         using Utf8Scratch __groupLabel = new(groupLabel, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderPassEncoderPushDebugGroup(this, __groupLabel.View);
     }
@@ -3133,13 +3989,18 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetBindGroup</c>.
     /// </summary>
-    public void SetBindGroup(uint groupIndex, WGPUBindGroup group, nuint dynamicOffsetCount, uint* dynamicOffsets) => WGPU.wgpuRenderPassEncoderSetBindGroup(this, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
+    public void SetBindGroup(uint groupIndex, WGPUBindGroup group, nuint dynamicOffsetCount, uint* dynamicOffsets)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderSetBindGroup(this, groupIndex, group, dynamicOffsetCount, dynamicOffsets);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetBindGroup</c>.
     /// </summary>
     public void SetBindGroup(uint groupIndex, WGPUBindGroup group, ReadOnlySpan<uint> dynamicOffsets)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         fixed (uint* __dynamicOffsets = dynamicOffsets)
         {
             WGPU.wgpuRenderPassEncoderSetBindGroup(this, groupIndex, group, (nuint)dynamicOffsets.Length, __dynamicOffsets);
@@ -3152,7 +4013,12 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <param name="color">
     /// The RGBA blend constant. Represents an <c>f32</c> color using <c>DoubleAsSupertype</c>.
     /// </param>
-    public void SetBlendConstant(WGPUColor* color) => WGPU.wgpuRenderPassEncoderSetBlendConstant(this, color);
+    public void SetBlendConstant(WGPUColor* color)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (color == null) Check.ThrowNullArgument(nameof(color));
+        WGPU.wgpuRenderPassEncoderSetBlendConstant(this, color);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetBlendConstant</c>.
@@ -3162,6 +4028,7 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// </param>
     public void SetBlendConstant(in WGPUColor color)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         fixed (WGPUColor* __color = &color)
         {
             WGPU.wgpuRenderPassEncoderSetBlendConstant(this, __color);
@@ -3171,13 +4038,18 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetImmediates</c>.
     /// </summary>
-    public void SetImmediates(uint offset, void* data, nuint size) => WGPU.wgpuRenderPassEncoderSetImmediates(this, offset, data, size);
+    public void SetImmediates(uint offset, void* data, nuint size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderSetImmediates(this, offset, data, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetImmediates</c>.
     /// </summary>
     public void SetImmediates<TData>(uint offset, ReadOnlySpan<TData> data) where TData : unmanaged
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         fixed (TData* __data = data)
         {
             WGPU.wgpuRenderPassEncoderSetImmediates(this, offset, __data, (nuint)data.Length * (nuint)sizeof(TData));
@@ -3187,18 +4059,29 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetIndexBuffer</c>.
     /// </summary>
-    public void SetIndexBuffer(WGPUBuffer buffer, WGPUIndexFormat format, ulong offset, ulong size) => WGPU.wgpuRenderPassEncoderSetIndexBuffer(this, buffer, format, offset, size);
+    public void SetIndexBuffer(WGPUBuffer buffer, WGPUIndexFormat format, ulong offset, ulong size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        if (!WGPUEnumChecks.IsDefined(format)) Check.ThrowUndefined(nameof(format), format);
+        WGPU.wgpuRenderPassEncoderSetIndexBuffer(this, buffer, format, offset, size);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuRenderPassEncoderSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         fixed (byte* __label = label)
         {
             WGPU.wgpuRenderPassEncoderSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -3210,6 +4093,7 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderPassEncoderSetLabel(this, __label.View);
     }
@@ -3217,22 +4101,39 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetPipeline</c>.
     /// </summary>
-    public void SetPipeline(WGPURenderPipeline pipeline) => WGPU.wgpuRenderPassEncoderSetPipeline(this, pipeline);
+    public void SetPipeline(WGPURenderPipeline pipeline)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (pipeline.IsNull) Check.ThrowNullArgument(nameof(pipeline));
+        WGPU.wgpuRenderPassEncoderSetPipeline(this, pipeline);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetScissorRect</c>.
     /// </summary>
-    public void SetScissorRect(uint x, uint y, uint width, uint height) => WGPU.wgpuRenderPassEncoderSetScissorRect(this, x, y, width, height);
+    public void SetScissorRect(uint x, uint y, uint width, uint height)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderSetScissorRect(this, x, y, width, height);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetStencilReference</c>.
     /// </summary>
-    public void SetStencilReference(uint reference) => WGPU.wgpuRenderPassEncoderSetStencilReference(this, reference);
+    public void SetStencilReference(uint reference)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderSetStencilReference(this, reference);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderSetVertexBuffer</c>.
     /// </summary>
-    public void SetVertexBuffer(uint slot, WGPUBuffer buffer, ulong offset, ulong size) => WGPU.wgpuRenderPassEncoderSetVertexBuffer(this, slot, buffer, offset, size);
+    public void SetVertexBuffer(uint slot, WGPUBuffer buffer, ulong offset, ulong size)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderSetVertexBuffer(this, slot, buffer, offset, size);
+    }
 
     /// <summary>
     /// TODO
@@ -3241,72 +4142,140 @@ public readonly unsafe partial struct WGPURenderPassEncoder : IEquatable<WGPURen
     /// <para/>
     /// Calls <c>wgpuRenderPassEncoderSetViewport</c>.
     /// </summary>
-    public void SetViewport(float x, float y, float width, float height, float minDepth, float maxDepth) => WGPU.wgpuRenderPassEncoderSetViewport(this, x, y, width, height, minDepth, maxDepth);
+    public void SetViewport(float x, float y, float width, float height, float minDepth, float maxDepth)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderSetViewport(this, x, y, width, height, minDepth, maxDepth);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuRenderPassEncoderAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuRenderPassEncoderRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderRelease(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderMultiDrawIndirect</c>.
     /// </summary>
-    public void MultiDrawIndirect(WGPUBuffer buffer, ulong offset, uint count) => WGPU.wgpuRenderPassEncoderMultiDrawIndirect(this, buffer, offset, count);
+    public void MultiDrawIndirect(WGPUBuffer buffer, ulong offset, uint count)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        WGPU.wgpuRenderPassEncoderMultiDrawIndirect(this, buffer, offset, count);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderMultiDrawIndexedIndirect</c>.
     /// </summary>
-    public void MultiDrawIndexedIndirect(WGPUBuffer buffer, ulong offset, uint count) => WGPU.wgpuRenderPassEncoderMultiDrawIndexedIndirect(this, buffer, offset, count);
+    public void MultiDrawIndexedIndirect(WGPUBuffer buffer, ulong offset, uint count)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        WGPU.wgpuRenderPassEncoderMultiDrawIndexedIndirect(this, buffer, offset, count);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderMultiDrawIndirectCount</c>.
     /// </summary>
-    public void MultiDrawIndirectCount(WGPUBuffer buffer, ulong offset, WGPUBuffer countBuffer, ulong countBufferOffset, uint maxCount) => WGPU.wgpuRenderPassEncoderMultiDrawIndirectCount(this, buffer, offset, countBuffer, countBufferOffset, maxCount);
+    public void MultiDrawIndirectCount(WGPUBuffer buffer, ulong offset, WGPUBuffer countBuffer, ulong countBufferOffset, uint maxCount)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        if (countBuffer.IsNull) Check.ThrowNullArgument(nameof(countBuffer));
+        WGPU.wgpuRenderPassEncoderMultiDrawIndirectCount(this, buffer, offset, countBuffer, countBufferOffset, maxCount);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderMultiDrawIndexedIndirectCount</c>.
     /// </summary>
-    public void MultiDrawIndexedIndirectCount(WGPUBuffer buffer, ulong offset, WGPUBuffer countBuffer, ulong countBufferOffset, uint maxCount) => WGPU.wgpuRenderPassEncoderMultiDrawIndexedIndirectCount(this, buffer, offset, countBuffer, countBufferOffset, maxCount);
+    public void MultiDrawIndexedIndirectCount(WGPUBuffer buffer, ulong offset, WGPUBuffer countBuffer, ulong countBufferOffset, uint maxCount)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        if (countBuffer.IsNull) Check.ThrowNullArgument(nameof(countBuffer));
+        WGPU.wgpuRenderPassEncoderMultiDrawIndexedIndirectCount(this, buffer, offset, countBuffer, countBufferOffset, maxCount);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderDrawMeshTasks</c>.
     /// </summary>
-    public void DrawMeshTasks(uint groupCountX, uint groupCountY, uint groupCountZ) => WGPU.wgpuRenderPassEncoderDrawMeshTasks(this, groupCountX, groupCountY, groupCountZ);
+    public void DrawMeshTasks(uint groupCountX, uint groupCountY, uint groupCountZ)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderDrawMeshTasks(this, groupCountX, groupCountY, groupCountZ);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderDrawMeshTasksIndirect</c>.
     /// </summary>
-    public void DrawMeshTasksIndirect(WGPUBuffer buffer, ulong offset) => WGPU.wgpuRenderPassEncoderDrawMeshTasksIndirect(this, buffer, offset);
+    public void DrawMeshTasksIndirect(WGPUBuffer buffer, ulong offset)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        WGPU.wgpuRenderPassEncoderDrawMeshTasksIndirect(this, buffer, offset);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderMultiDrawMeshTasksIndirect</c>.
     /// </summary>
-    public void MultiDrawMeshTasksIndirect(WGPUBuffer buffer, ulong offset, uint count) => WGPU.wgpuRenderPassEncoderMultiDrawMeshTasksIndirect(this, buffer, offset, count);
+    public void MultiDrawMeshTasksIndirect(WGPUBuffer buffer, ulong offset, uint count)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        WGPU.wgpuRenderPassEncoderMultiDrawMeshTasksIndirect(this, buffer, offset, count);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderMultiDrawMeshTasksIndirectCount</c>.
     /// </summary>
-    public void MultiDrawMeshTasksIndirectCount(WGPUBuffer buffer, ulong offset, WGPUBuffer countBuffer, ulong countBufferOffset, uint maxCount) => WGPU.wgpuRenderPassEncoderMultiDrawMeshTasksIndirectCount(this, buffer, offset, countBuffer, countBufferOffset, maxCount);
+    public void MultiDrawMeshTasksIndirectCount(WGPUBuffer buffer, ulong offset, WGPUBuffer countBuffer, ulong countBufferOffset, uint maxCount)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (buffer.IsNull) Check.ThrowNullArgument(nameof(buffer));
+        if (countBuffer.IsNull) Check.ThrowNullArgument(nameof(countBuffer));
+        WGPU.wgpuRenderPassEncoderMultiDrawMeshTasksIndirectCount(this, buffer, offset, countBuffer, countBufferOffset, maxCount);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderBeginPipelineStatisticsQuery</c>.
     /// </summary>
-    public void BeginPipelineStatisticsQuery(WGPUQuerySet querySet, uint queryIndex) => WGPU.wgpuRenderPassEncoderBeginPipelineStatisticsQuery(this, querySet, queryIndex);
+    public void BeginPipelineStatisticsQuery(WGPUQuerySet querySet, uint queryIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (querySet.IsNull) Check.ThrowNullArgument(nameof(querySet));
+        WGPU.wgpuRenderPassEncoderBeginPipelineStatisticsQuery(this, querySet, queryIndex);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderEndPipelineStatisticsQuery</c>.
     /// </summary>
-    public void EndPipelineStatisticsQuery() => WGPU.wgpuRenderPassEncoderEndPipelineStatisticsQuery(this);
+    public void EndPipelineStatisticsQuery()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        WGPU.wgpuRenderPassEncoderEndPipelineStatisticsQuery(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPassEncoderWriteTimestamp</c>.
     /// </summary>
-    public void WriteTimestamp(WGPUQuerySet querySet, uint queryIndex) => WGPU.wgpuRenderPassEncoderWriteTimestamp(this, querySet, queryIndex);
+    public void WriteTimestamp(WGPUQuerySet querySet, uint queryIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPassEncoder");
+        if (querySet.IsNull) Check.ThrowNullArgument(nameof(querySet));
+        WGPU.wgpuRenderPassEncoderWriteTimestamp(this, querySet, queryIndex);
+    }
 
 }
 
@@ -3367,18 +4336,27 @@ public readonly unsafe partial struct WGPURenderPipeline : IEquatable<WGPURender
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUBindGroupLayout GetBindGroupLayout(uint groupIndex) => WGPU.wgpuRenderPipelineGetBindGroupLayout(this, groupIndex);
+    public WGPUBindGroupLayout GetBindGroupLayout(uint groupIndex)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPipeline");
+        return WGPU.wgpuRenderPipelineGetBindGroupLayout(this, groupIndex);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPipelineSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuRenderPipelineSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPipeline");
+        WGPU.wgpuRenderPipelineSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPipelineSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPipeline");
         fixed (byte* __label = label)
         {
             WGPU.wgpuRenderPipelineSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -3390,6 +4368,7 @@ public readonly unsafe partial struct WGPURenderPipeline : IEquatable<WGPURender
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPipeline");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuRenderPipelineSetLabel(this, __label.View);
     }
@@ -3397,12 +4376,20 @@ public readonly unsafe partial struct WGPURenderPipeline : IEquatable<WGPURender
     /// <summary>
     /// Calls <c>wgpuRenderPipelineAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuRenderPipelineAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPipeline");
+        WGPU.wgpuRenderPipelineAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuRenderPipelineRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuRenderPipelineRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPURenderPipeline");
+        WGPU.wgpuRenderPipelineRelease(this);
+    }
 
 }
 
@@ -3460,13 +4447,18 @@ public readonly unsafe partial struct WGPUSampler : IEquatable<WGPUSampler>, IDi
     /// <summary>
     /// Calls <c>wgpuSamplerSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuSamplerSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSampler");
+        WGPU.wgpuSamplerSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuSamplerSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUSampler");
         fixed (byte* __label = label)
         {
             WGPU.wgpuSamplerSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -3478,6 +4470,7 @@ public readonly unsafe partial struct WGPUSampler : IEquatable<WGPUSampler>, IDi
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUSampler");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuSamplerSetLabel(this, __label.View);
     }
@@ -3485,12 +4478,20 @@ public readonly unsafe partial struct WGPUSampler : IEquatable<WGPUSampler>, IDi
     /// <summary>
     /// Calls <c>wgpuSamplerAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuSamplerAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSampler");
+        WGPU.wgpuSamplerAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuSamplerRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuSamplerRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSampler");
+        WGPU.wgpuSamplerRelease(this);
+    }
 
 }
 
@@ -3548,18 +4549,27 @@ public readonly unsafe partial struct WGPUShaderModule : IEquatable<WGPUShaderMo
     /// <summary>
     /// Calls <c>wgpuShaderModuleGetCompilationInfo</c>.
     /// </summary>
-    public WGPUFuture GetCompilationInfo(WGPUCompilationInfoCallbackInfo callbackInfo) => WGPU.wgpuShaderModuleGetCompilationInfo(this, callbackInfo);
+    public WGPUFuture GetCompilationInfo(WGPUCompilationInfoCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUShaderModule");
+        return WGPU.wgpuShaderModuleGetCompilationInfo(this, callbackInfo);
+    }
 
     /// <summary>
     /// Calls <c>wgpuShaderModuleSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuShaderModuleSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUShaderModule");
+        WGPU.wgpuShaderModuleSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuShaderModuleSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUShaderModule");
         fixed (byte* __label = label)
         {
             WGPU.wgpuShaderModuleSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -3571,6 +4581,7 @@ public readonly unsafe partial struct WGPUShaderModule : IEquatable<WGPUShaderMo
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUShaderModule");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuShaderModuleSetLabel(this, __label.View);
     }
@@ -3578,12 +4589,20 @@ public readonly unsafe partial struct WGPUShaderModule : IEquatable<WGPUShaderMo
     /// <summary>
     /// Calls <c>wgpuShaderModuleAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuShaderModuleAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUShaderModule");
+        WGPU.wgpuShaderModuleAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuShaderModuleRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuShaderModuleRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUShaderModule");
+        WGPU.wgpuShaderModuleRelease(this);
+    }
 
 }
 
@@ -3651,7 +4670,12 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <param name="config">
     /// The new configuration to use.
     /// </param>
-    public void Configure(WGPUSurfaceConfiguration* config) => WGPU.wgpuSurfaceConfigure(this, config);
+    public void Configure(WGPUSurfaceConfiguration* config)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        if (config == null) Check.ThrowNullArgument(nameof(config));
+        WGPU.wgpuSurfaceConfigure(this, config);
+    }
 
     /// <summary>
     /// Configures parameters for rendering to <c>surface</c>.
@@ -3666,6 +4690,7 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// </param>
     public void Configure(in WGPUSurfaceConfiguration config)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
         fixed (WGPUSurfaceConfiguration* __config = &config)
         {
             WGPU.wgpuSurfaceConfigure(this, __config);
@@ -3689,7 +4714,13 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <returns>
     /// Indicates if there was an <c>OutStructChainError</c>.
     /// </returns>
-    public WGPUStatus GetCapabilities(WGPUAdapter adapter, WGPUSurfaceCapabilities* capabilities) => WGPU.wgpuSurfaceGetCapabilities(this, adapter, capabilities);
+    public WGPUStatus GetCapabilities(WGPUAdapter adapter, WGPUSurfaceCapabilities* capabilities)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        if (adapter.IsNull) Check.ThrowNullArgument(nameof(adapter));
+        if (capabilities == null) Check.ThrowNullArgument(nameof(capabilities));
+        return WGPU.wgpuSurfaceGetCapabilities(this, adapter, capabilities);
+    }
 
     /// <summary>
     /// Returns the <c>WGPUTexture</c> to render to <c>surface</c> this frame along with metadata on the frame.
@@ -3702,7 +4733,12 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <param name="surfaceTexture">
     /// The structure to fill the <c>WGPUTexture</c> and metadata in.
     /// </param>
-    public void GetCurrentTexture(WGPUSurfaceTexture* surfaceTexture) => WGPU.wgpuSurfaceGetCurrentTexture(this, surfaceTexture);
+    public void GetCurrentTexture(WGPUSurfaceTexture* surfaceTexture)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        if (surfaceTexture == null) Check.ThrowNullArgument(nameof(surfaceTexture));
+        WGPU.wgpuSurfaceGetCurrentTexture(this, surfaceTexture);
+    }
 
     /// <summary>
     /// Shows <c>surface</c>'s current texture to the user.
@@ -3713,7 +4749,11 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <returns>
     /// Returns <c>WGPUStatus_Error</c> if the surface doesn't have a current texture.
     /// </returns>
-    public WGPUStatus Present() => WGPU.wgpuSurfacePresent(this);
+    public WGPUStatus Present()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        return WGPU.wgpuSurfacePresent(this);
+    }
 
     /// <summary>
     /// Modifies the label used to refer to <c>surface</c>.
@@ -3723,7 +4763,11 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <param name="label">
     /// The new label.
     /// </param>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuSurfaceSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        WGPU.wgpuSurfaceSetLabel(this, label);
+    }
 
     /// <summary>
     /// Modifies the label used to refer to <c>surface</c>.
@@ -3735,6 +4779,7 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// </param>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
         fixed (byte* __label = label)
         {
             WGPU.wgpuSurfaceSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -3751,6 +4796,7 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// </param>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuSurfaceSetLabel(this, __label.View);
     }
@@ -3761,17 +4807,29 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <para/>
     /// Calls <c>wgpuSurfaceUnconfigure</c>.
     /// </summary>
-    public void Unconfigure() => WGPU.wgpuSurfaceUnconfigure(this);
+    public void Unconfigure()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        WGPU.wgpuSurfaceUnconfigure(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuSurfaceAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuSurfaceAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        WGPU.wgpuSurfaceAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuSurfaceRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuSurfaceRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        WGPU.wgpuSurfaceRelease(this);
+    }
 
     /// <summary>
     /// Discard the current surface texture without presenting it.
@@ -3783,7 +4841,11 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <para/>
     /// Calls <c>wgpuSurfaceDiscardTexture</c>.
     /// </summary>
-    public WGPUStatus DiscardTexture() => WGPU.wgpuSurfaceDiscardTexture(this);
+    public WGPUStatus DiscardTexture()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        return WGPU.wgpuSurfaceDiscardTexture(this);
+    }
 
     /// <summary>
     /// Query HDR / luminance characteristics of the display @p surface is on, as
@@ -3791,7 +4853,12 @@ public readonly unsafe partial struct WGPUSurface : IEquatable<WGPUSurface>, IDi
     /// <para/>
     /// Calls <c>wgpuSurfaceGetDisplayHdrInfo</c>.
     /// </summary>
-    public WGPUDisplayHdrInfo GetDisplayHdrInfo(WGPUAdapter adapter) => WGPU.wgpuSurfaceGetDisplayHdrInfo(this, adapter);
+    public WGPUDisplayHdrInfo GetDisplayHdrInfo(WGPUAdapter adapter)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUSurface");
+        if (adapter.IsNull) Check.ThrowNullArgument(nameof(adapter));
+        return WGPU.wgpuSurfaceGetDisplayHdrInfo(this, adapter);
+    }
 
 }
 
@@ -3852,7 +4919,11 @@ public readonly unsafe partial struct WGPUTexture : IEquatable<WGPUTexture>, IDi
     /// <returns>
     /// This value is <c>ReturnedWithOwnership</c>.
     /// </returns>
-    public WGPUTextureView CreateView(WGPUTextureViewDescriptor* descriptor = null) => WGPU.wgpuTextureCreateView(this, descriptor);
+    public WGPUTextureView CreateView(WGPUTextureViewDescriptor* descriptor = null)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureCreateView(this, descriptor);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureCreateView</c>.
@@ -3862,6 +4933,7 @@ public readonly unsafe partial struct WGPUTexture : IEquatable<WGPUTexture>, IDi
     /// </returns>
     public WGPUTextureView CreateView(in WGPUTextureViewDescriptor descriptor)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
         fixed (WGPUTextureViewDescriptor* __descriptor = &descriptor)
         {
             return WGPU.wgpuTextureCreateView(this, __descriptor);
@@ -3871,63 +4943,108 @@ public readonly unsafe partial struct WGPUTexture : IEquatable<WGPUTexture>, IDi
     /// <summary>
     /// Calls <c>wgpuTextureDestroy</c>.
     /// </summary>
-    public void Destroy() => WGPU.wgpuTextureDestroy(this);
+    public void Destroy()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        WGPU.wgpuTextureDestroy(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetDepthOrArrayLayers</c>.
     /// </summary>
-    public uint GetDepthOrArrayLayers() => WGPU.wgpuTextureGetDepthOrArrayLayers(this);
+    public uint GetDepthOrArrayLayers()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetDepthOrArrayLayers(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetDimension</c>.
     /// </summary>
-    public WGPUTextureDimension GetDimension() => WGPU.wgpuTextureGetDimension(this);
+    public WGPUTextureDimension GetDimension()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetDimension(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetFormat</c>.
     /// </summary>
-    public WGPUTextureFormat GetFormat() => WGPU.wgpuTextureGetFormat(this);
+    public WGPUTextureFormat GetFormat()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetFormat(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetHeight</c>.
     /// </summary>
-    public uint GetHeight() => WGPU.wgpuTextureGetHeight(this);
+    public uint GetHeight()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetHeight(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetMipLevelCount</c>.
     /// </summary>
-    public uint GetMipLevelCount() => WGPU.wgpuTextureGetMipLevelCount(this);
+    public uint GetMipLevelCount()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetMipLevelCount(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetSampleCount</c>.
     /// </summary>
-    public uint GetSampleCount() => WGPU.wgpuTextureGetSampleCount(this);
+    public uint GetSampleCount()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetSampleCount(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetTextureBindingViewDimension</c>.
     /// </summary>
-    public WGPUTextureViewDimension GetTextureBindingViewDimension() => WGPU.wgpuTextureGetTextureBindingViewDimension(this);
+    public WGPUTextureViewDimension GetTextureBindingViewDimension()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetTextureBindingViewDimension(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetUsage</c>.
     /// </summary>
-    public WGPUTextureUsage GetUsage() => WGPU.wgpuTextureGetUsage(this);
+    public WGPUTextureUsage GetUsage()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetUsage(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureGetWidth</c>.
     /// </summary>
-    public uint GetWidth() => WGPU.wgpuTextureGetWidth(this);
+    public uint GetWidth()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetWidth(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuTextureSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        WGPU.wgpuTextureSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
         fixed (byte* __label = label)
         {
             WGPU.wgpuTextureSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -3939,6 +5056,7 @@ public readonly unsafe partial struct WGPUTexture : IEquatable<WGPUTexture>, IDi
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuTextureSetLabel(this, __label.View);
     }
@@ -3946,12 +5064,20 @@ public readonly unsafe partial struct WGPUTexture : IEquatable<WGPUTexture>, IDi
     /// <summary>
     /// Calls <c>wgpuTextureAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuTextureAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        WGPU.wgpuTextureAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuTextureRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        WGPU.wgpuTextureRelease(this);
+    }
 
     /// <summary>
     /// Returns the backend-native <c>id&lt;MTLTexture&gt;</c> as an opaque pointer.
@@ -3962,7 +5088,11 @@ public readonly unsafe partial struct WGPUTexture : IEquatable<WGPUTexture>, IDi
     /// <para/>
     /// Calls <c>wgpuTextureGetNativeMetalTexture</c>.
     /// </summary>
-    public void* GetNativeMetalTexture() => WGPU.wgpuTextureGetNativeMetalTexture(this);
+    public void* GetNativeMetalTexture()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTexture");
+        return WGPU.wgpuTextureGetNativeMetalTexture(this);
+    }
 
 }
 
@@ -4020,13 +5150,18 @@ public readonly unsafe partial struct WGPUTextureView : IEquatable<WGPUTextureVi
     /// <summary>
     /// Calls <c>wgpuTextureViewSetLabel</c>.
     /// </summary>
-    public void SetLabel(WGPUStringView label) => WGPU.wgpuTextureViewSetLabel(this, label);
+    public void SetLabel(WGPUStringView label)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTextureView");
+        WGPU.wgpuTextureViewSetLabel(this, label);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureViewSetLabel</c>.
     /// </summary>
     public void SetLabel(ReadOnlySpan<byte> label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUTextureView");
         fixed (byte* __label = label)
         {
             WGPU.wgpuTextureViewSetLabel(this, new WGPUStringView(__label, (nuint)label.Length));
@@ -4038,6 +5173,7 @@ public readonly unsafe partial struct WGPUTextureView : IEquatable<WGPUTextureVi
     /// </summary>
     public void SetLabel(string? label)
     {
+        if (IsNull) Check.ThrowNullHandle("WGPUTextureView");
         using Utf8Scratch __label = new(label, stackalloc byte[Utf8Scratch.StackBufferSize]);
         WGPU.wgpuTextureViewSetLabel(this, __label.View);
     }
@@ -4045,12 +5181,20 @@ public readonly unsafe partial struct WGPUTextureView : IEquatable<WGPUTextureVi
     /// <summary>
     /// Calls <c>wgpuTextureViewAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuTextureViewAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTextureView");
+        WGPU.wgpuTextureViewAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTextureViewRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuTextureViewRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTextureView");
+        WGPU.wgpuTextureViewRelease(this);
+    }
 
 }
 
@@ -4114,17 +5258,29 @@ public readonly unsafe partial struct WGPUPipelineCache : IEquatable<WGPUPipelin
     /// <para/>
     /// Calls <c>wgpuPipelineCacheGetData</c>.
     /// </summary>
-    public nuint GetData(void* data) => WGPU.wgpuPipelineCacheGetData(this, data);
+    public nuint GetData(void* data)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineCache");
+        return WGPU.wgpuPipelineCacheGetData(this, data);
+    }
 
     /// <summary>
     /// Calls <c>wgpuPipelineCacheAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuPipelineCacheAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineCache");
+        WGPU.wgpuPipelineCacheAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuPipelineCacheRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuPipelineCacheRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUPipelineCache");
+        WGPU.wgpuPipelineCacheRelease(this);
+    }
 
 }
 
@@ -4185,31 +5341,51 @@ public readonly unsafe partial struct WGPUBlas : IEquatable<WGPUBlas>, IDisposab
     /// <para/>
     /// Calls <c>wgpuBlasGetHandle</c>.
     /// </summary>
-    public ulong GetHandle() => WGPU.wgpuBlasGetHandle(this);
+    public ulong GetHandle()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBlas");
+        return WGPU.wgpuBlasGetHandle(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBlasAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuBlasAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBlas");
+        WGPU.wgpuBlasAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuBlasRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuBlasRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBlas");
+        WGPU.wgpuBlasRelease(this);
+    }
 
     /// <summary>
     /// Begin preparing a BLAS for compaction. Calls @p callbackInfo when ready.
     /// <para/>
     /// Calls <c>wgpuBlasPrepareCompactAsync</c>.
     /// </summary>
-    public void PrepareCompactAsync(WGPUBlasCompactCallbackInfo callbackInfo) => WGPU.wgpuBlasPrepareCompactAsync(this, callbackInfo);
+    public void PrepareCompactAsync(WGPUBlasCompactCallbackInfo callbackInfo)
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBlas");
+        WGPU.wgpuBlasPrepareCompactAsync(this, callbackInfo);
+    }
 
     /// <summary>
     /// Returns true if the BLAS is ready to be compacted via <c>wgpuQueueCompactBlas</c>.
     /// <para/>
     /// Calls <c>wgpuBlasReadyForCompaction</c>.
     /// </summary>
-    public WGPUBool ReadyForCompaction() => WGPU.wgpuBlasReadyForCompaction(this);
+    public WGPUBool ReadyForCompaction()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUBlas");
+        return WGPU.wgpuBlasReadyForCompaction(this);
+    }
 
 }
 
@@ -4267,11 +5443,19 @@ public readonly unsafe partial struct WGPUTlas : IEquatable<WGPUTlas>, IDisposab
     /// <summary>
     /// Calls <c>wgpuTlasAddRef</c>.
     /// </summary>
-    public void AddRef() => WGPU.wgpuTlasAddRef(this);
+    public void AddRef()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTlas");
+        WGPU.wgpuTlasAddRef(this);
+    }
 
     /// <summary>
     /// Calls <c>wgpuTlasRelease</c>.
     /// </summary>
-    public void Release() => WGPU.wgpuTlasRelease(this);
+    public void Release()
+    {
+        if (IsNull) Check.ThrowNullHandle("WGPUTlas");
+        WGPU.wgpuTlasRelease(this);
+    }
 
 }
